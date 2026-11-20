@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FC26 Node Tester</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #1b1f24; --muted: #5f6b7a; --line: #dde1e6;
+    --accent: #0b6bcb; --ok: #1a7f37; --warn: #b26a00; --bad: #c62828; --chip: #eef1f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --card: #171b21; --text: #e6e9ed; --muted: #95a0ad; --line: #2a3038;
+      --accent: #4ea1ff; --ok: #3fb950; --warn: #e3a008; --bad: #ff6b6b; --chip: #222830;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .banner { border: 1px solid var(--bad); color: var(--bad); border-radius: 10px; padding: 10px 12px; margin-bottom: 16px; display: none; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .card h2 { font-size: 16px; margin: 0; }
+  .head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .head .spacer { flex: 1; }
+  .chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--muted); }
+  .chip.ok { color: var(--ok); } .chip.bad { color: var(--bad); } .chip.warn { color: var(--warn); }
+  .big { font-size: 48px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+  .big small { font-size: 20px; color: var(--muted); font-weight: 500; }
+  .state { display: inline-block; font-weight: 700; padding: 4px 12px; border-radius: 8px; background: var(--chip); }
+  .state.ALARM { background: var(--bad); color: #fff; animation: blink .5s steps(2) infinite; }
+  .state.ACKNOWLEDGED { color: var(--bad); } .state.PENDING { color: var(--warn); } .state.NORMAL { color: var(--ok); }
+  @keyframes blink { 50% { opacity: .55; } }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 12px 0; }
+  dt { color: var(--muted); } dd { margin: 0; font-variant-numeric: tabular-nums; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--chip); color: var(--text); border-radius: 9px; padding: 7px 12px; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-top: 10px; }
+  label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
+  input { font: inherit; width: 90px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  .log { margin-top: 16px; }
+  pre { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; height: 200px; overflow: auto; font-size: 12px; margin: 6px 0 0; white-space: pre-wrap; }
+  .hint { color: var(--muted); font-size: 13px; }
+  code { background: var(--chip); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>FC26 Node Tester</h1>
+  <p class="sub">Talks to the two ESP32-C3 nodes over Bluetooth Low Energy, straight from the browser. No app, no Wi-Fi network, no passwords.</p>
+  <div class="banner" id="nobt">This browser has no Web Bluetooth. Use <b>Chrome or Edge</b> on a Mac, Windows or Android, and open the page from <code>http://localhost</code> (see the README). Safari and Firefox don't support it. The <b>Simulate</b> buttons still work.</div>
+
+  <div class="grid">
+    <!-- Node 2 -->
+    <section class="card">
+      <div class="head">
+        <h2>Node 2 · Siren</h2><span class="chip" id="n2-conn">not connected</span><span class="spacer"></span>
+        <button class="primary" id="n2-connect">Connect</button>
+        <button id="n2-sim" title="Feed fake data through the same decoder">Simulate</button>
+      </div>
+      <div class="big" id="n2-temp">--.-<small> °C</small></div>
+      <span class="state" id="n2-state">—</span>
+      <dl>
+        <dt>Hooter (relay)</dt><dd id="n2-relay">—</dd>
+        <dt>Node 1 link (Wi-Fi)</dt><dd id="n2-link">—</dd>
+        <dt>Siren test</dt><dd id="n2-test">—</dd>
+        <dt>Limits</dt><dd id="n2-limits">—</dd>
+      </dl>
+      <div class="row">
+        <button class="danger" id="n2-ack" disabled>Acknowledge</button>
+        <button id="n2-testbtn" disabled>Test siren (2 s)</button>
+      </div>
+      <div class="row">
+        <label>Setpoint °C<input id="cfg-sp" type="number" step="0.5" value="35"></label>
+        <label>Hysteresis °C<input id="cfg-hy" type="number" step="0.5" value="2"></label>
+        <label>Delay s<input id="cfg-dl" type="number" step="1" value="3"></label>
+        <button id="n2-cfg" disabled>Save to Node 2</button>
+      </div>
+      <p class="hint">Node 2 decides the alarm itself; this page only watches and sends commands. Touching the TTP223 acknowledges, and you'll see it here.</p>
+    </section>
+
+    <!-- Node 1 -->
+    <section class="card">
+      <div class="head">
+        <h2>Node 1 · PT100</h2><span class="chip" id="n1-conn">not connected</span><span class="spacer"></span>
+        <button class="primary" id="n1-connect">Connect</button>
+        <button id="n1-sim">Simulate</button>
+      </div>
+      <div class="big" id="n1-temp">--.-<small> °C</small></div>
+      <dl>
+        <dt>Probe resistance</dt><dd id="n1-ohms">—</dd>
+        <dt>Status</dt><dd id="n1-fault">—</dd>
+        <dt>Calibration offset</dt><dd id="n1-ofs">—</dd>
+        <dt>Packets</dt><dd id="n1-seq">—</dd>
+      </dl>
+      <div class="row">
+        <label>Real temperature °C<input id="cal-real" type="number" step="0.1" placeholder="e.g. 25.0"></label>
+        <button id="n1-cal" disabled>Calibrate</button>
+        <button id="n1-zero" disabled>Clear offset</button>
+      </div>
+      <p class="hint">Calibrate: put the probe next to a trusted thermometer, type its reading, press Calibrate. Node 1 stores the offset.</p>
+    </section>
+  </div>
+
+  <div class="log">
+    <div class="head"><h2>Log</h2><span class="spacer"></span><button id="clear">Clear</button></div>
+    <pre id="log"></pre>
+  </div>
+</main>
+
+<script>
+// Keep in sync with esp32/*/fc26_protocol.h and the Flutter app's ble_protocol.dart
+const UUID = {
+  tempService: 'fc260100-6a1b-4d2e-9f3c-8b5e7a0c1d2f',
+  tempReading: 'fc260101-6a1b-4d2e-9f3c-8b5e7a0c1d2f',
+  tempCommand: 'fc260102-6a1b-4d2e-9f3c-8b5e7a0c1d2f',
+  sirenService: 'fc260200-6a1b-4d2e-9f3c-8b5e7a0c1d2f',
+  sirenState: 'fc260201-6a1b-4d2e-9f3c-8b5e7a0c1d2f',
+  sirenCommand: 'fc260202-6a1b-4d2e-9f3c-8b5e7a0c1d2f',
+};
+const NO_READING = -32768;
+const STATES = ['NORMAL', 'PENDING', 'ALARM', 'ACKNOWLEDGED'];
+const FAULTS = ['OK', 'ADS1115 not found', 'Probe open / wire loose', 'Probe shorted', 'Out of range'];
+
+const $ = (id) => document.getElementById(id);
+const log = (msg) => {
+  const line = `${new Date().toLocaleTimeString()}  ${msg}\n`;
+  $('log').textContent = line + $('log').textContent.slice(0, 20000);
+};
+
+function decodeSiren(dv) {
+  const t = dv.getInt16(0, true);
+  const flags = dv.getUint8(3);
+  return {
+    celsius: t === NO_READING ? null : t / 100,
+    state: STATES[dv.getUint8(2)] ?? 'UNKNOWN',
+    relayOn: !!(flags & 1), sensorOnline: !!(flags & 2), testActive: !!(flags & 4), sensorFault: !!(flags & 8),
+    setpoint: dv.getInt16(4, true) / 100, hysteresis: dv.getUint16(6, true) / 100,
+    delay: dv.getUint8(8), seq: dv.getUint8(9),
+  };
+}
+
+function decodeTemp(dv) {
+  const t = dv.getInt16(0, true);
+  return {
+    celsius: t === NO_READING ? null : t / 100,
+    ohms: dv.getUint16(2, true) / 100,
+    fault: dv.getUint8(4), seq: dv.getUint8(5), offset: dv.getInt16(6, true) / 100,
+  };
+}
+
+const fmt = (c) => c == null ? '--.-' : c.toFixed(1);
+let lastState = null, cfgTouched = false;
+
+function showSiren(s) {
+  $('n2-temp').innerHTML = `${fmt(s.celsius)}<small> °C</small>`;
+  const el = $('n2-state');
+  el.textContent = s.state; el.className = `state ${s.state}`;
+  $('n2-relay').textContent = s.relayOn ? '🔊 ON' : 'off';
+  $('n2-link').textContent = s.sensorOnline ? (s.sensorFault ? 'online, probe FAULT' : 'online') : 'no packets from Node 1';
+  $('n2-test').textContent = s.testActive ? 'running' : '—';
+  $('n2-limits').textContent = `alarm ≥ ${s.setpoint.toFixed(1)} °C after ${s.delay} s · clears ≤ ${(s.setpoint - s.hysteresis).toFixed(1)} °C`;
+  if (!cfgTouched) { $('cfg-sp').value = s.setpoint; $('cfg-hy').value = s.hysteresis; $('cfg-dl').value = s.delay; }
+  if (s.state !== lastState) { log(`Node 2 state → ${s.state}${s.celsius != null ? ` at ${s.celsius.toFixed(2)} °C` : ''}`); lastState = s.state; }
+}
+
+function showTemp(r) {
+  $('n1-temp').innerHTML = `${fmt(r.celsius)}<small> °C</small>`;
+  $('n1-ohms').textContent = r.ohms ? `${r.ohms.toFixed(2)} Ω` : '—';
+  $('n1-fault').textContent = FAULTS[r.fault] ?? `fault ${r.fault}`;
+  $('n1-ofs').textContent = `${r.offset >= 0 ? '+' : ''}${r.offset.toFixed(2)} °C`;
+  $('n1-seq').textContent = `#${r.seq}`;
+}
+
+// ---------- Web Bluetooth ----------
+const nodes = {
+  n2: { name: 'FC26-SIREN', service: UUID.sirenService, notify: UUID.sirenState, cmd: UUID.sirenCommand, decode: decodeSiren, show: showSiren, buttons: ['n2-ack', 'n2-testbtn', 'n2-cfg'] },
+  n1: { name: 'FC26-TEMP', service: UUID.tempService, notify: UUID.tempReading, cmd: UUID.tempCommand, decode: decodeTemp, show: showTemp, buttons: ['n1-cal', 'n1-zero'] },
+};
+
+function setConn(key, text, cls) {
+  const chip = $(`${key}-conn`);
+  chip.textContent = text; chip.className = `chip ${cls ?? ''}`;
+  nodes[key].buttons.forEach((b) => ($(b).disabled = cls !== 'ok'));
+}
+
+async function connect(key) {
+  const n = nodes[key];
+  stopSim(key);
+  try {
+    const device = await navigator.bluetooth.requestDevice({ filters: [{ name: n.name }], optionalServices: [n.service] });
+    device.addEventListener('gattserverdisconnected', () => { setConn(key, 'disconnected', 'bad'); log(`${n.name} disconnected`); n.cmdChr = null; });
+    setConn(key, 'connecting…', 'warn');
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(n.service);
+    const chr = await svc.getCharacteristic(n.notify);
+    n.cmdChr = await svc.getCharacteristic(n.cmd);
+    chr.addEventListener('characteristicvaluechanged', (e) => n.show(n.decode(e.target.value)));
+    await chr.startNotifications();
+    n.show(n.decode(await chr.readValue()));
+    setConn(key, 'connected', 'ok');
+    log(`${n.name} connected`);
+  } catch (e) {
+    setConn(key, 'not connected');
+    log(`${n.name}: ${e.message}`);
+  }
+}
+
+async function send(key, text) {
+  const n = nodes[key];
+  if (n.sim) { n.sim.command(text); log(`(sim) → ${n.name}: ${text}`); return; }
+  if (!n.cmdChr) return;
+  try {
+    await n.cmdChr.writeValueWithResponse(new TextEncoder().encode(text));
+    log(`→ ${n.name}: ${text}`);
+  } catch (e) { log(`${n.name} write failed: ${e.message}`); }
+}
+
+// ---------- Simulator (fake nodes, same decoders) ----------
+function startSim(key) {
+  const n = nodes[key];
+  if (n.sim) { stopSim(key); return; }
+  const sim = { t: 30, up: true, sp: 35, hy: 2, dl: 3, state: 0, above: 0, testUntil: 0, ofs: 0, seq: 0 };
+  sim.command = (c) => {
+    if (c === 'ACK' || c === 'STOP') { if (sim.state === 2) sim.state = 3; sim.testUntil = 0; }
+    else if (c === 'TEST' && sim.state !== 2) sim.testUntil = Date.now() + 2000;
+    else if (c.startsWith('CFG=')) { [sim.sp, sim.hy, sim.dl] = c.slice(4).split(',').map(Number); }
+    else if (c.startsWith('CAL=')) sim.ofs = Number(c.slice(4)) - sim.t;
+    else if (c.startsWith('OFS=')) sim.ofs = Number(c.slice(4));
+  };
+  sim.timer = setInterval(() => {
+    sim.t += sim.up ? 0.9 : -0.9;
+    if (sim.t > 58) sim.up = false;
+    if (sim.t < 30) sim.up = true;
+    const now = Date.now();
+    if (sim.state === 0 && sim.t >= sim.sp) { sim.state = 1; sim.above = now; }
+    if (sim.state === 1 && sim.t < sim.sp) sim.state = 0;
+    if (sim.state === 1 && now - sim.above >= sim.dl * 1000) sim.state = 2;
+    if (sim.state >= 2 && sim.t <= sim.sp - sim.hy) sim.state = 0;
+    const dv = new DataView(new ArrayBuffer(key === 'n2' ? 10 : 8));
+    if (key === 'n2') {
+      const test = now < sim.testUntil;
+      dv.setInt16(0, Math.round(sim.t * 100), true); dv.setUint8(2, sim.state);
+      dv.setUint8(3, (sim.state === 2 || test ? 1 : 0) | 2 | (test ? 4 : 0));
+      dv.setInt16(4, Math.round(sim.sp * 100), true); dv.setUint16(6, Math.round(sim.hy * 100), true);
+      dv.setUint8(8, sim.dl); dv.setUint8(9, sim.seq++ & 255);
+    } else {
+      const ohms = 100 * (1 + 3.9083e-3 * sim.t - 5.775e-7 * sim.t * sim.t);
+      dv.setInt16(0, Math.round((sim.t + sim.ofs) * 100), true); dv.setUint16(2, Math.round(ohms * 100), true);
+      dv.setUint8(4, 0); dv.setUint8(5, sim.seq++ & 255); dv.setInt16(6, Math.round(sim.ofs * 100), true);
+    }
+    n.show(n.decode(dv));
+  }, 500);
+  n.sim = sim;
+  $(`${key}-sim`).textContent = 'Stop sim';
+  setConn(key, 'simulated', 'ok');
+  log(`${n.name} simulator started`);
+}
+
+function stopSim(key) {
+  const n = nodes[key];
+  if (!n.sim) return;
+  clearInterval(n.sim.timer);
+  n.sim = null;
+  $(`${key}-sim`).textContent = 'Simulate';
+  setConn(key, 'not connected');
+}
+
+// ---------- Wiring ----------
+if (!navigator.bluetooth) {
+  $('nobt').style.display = 'block';
+  ['n1-connect', 'n2-connect'].forEach((b) => ($(b).disabled = true));
+}
+$('n2-connect').onclick = () => connect('n2');
+$('n1-connect').onclick = () => connect('n1');
+$('n2-sim').onclick = () => startSim('n2');
+$('n1-sim').onclick = () => startSim('n1');
+$('n2-ack').onclick = () => send('n2', 'ACK');
+$('n2-testbtn').onclick = () => send('n2', 'TEST');
+['cfg-sp', 'cfg-hy', 'cfg-dl'].forEach((id) => $(id).addEventListener('input', () => (cfgTouched = true)));
+$('n2-cfg').onclick = () => {
+  const sp = Number($('cfg-sp').value), hy = Number($('cfg-hy').value), dl = Math.round(Number($('cfg-dl').value));
+  if (!(sp >= 0 && sp <= 150 && hy >= 0.1 && hy <= 20 && dl >= 0 && dl <= 60)) { log('Config out of range: setpoint 0–150, hysteresis 0.1–20, delay 0–60'); return; }
+  send('n2', `CFG=${sp},${hy},${dl}`);
+  cfgTouched = false;
+};
+$('n1-cal').onclick = () => {
+  const v = Number($('cal-real').value);
+  if ($('cal-real').value === '' || Number.isNaN(v)) { log('Type the real temperature first'); return; }
+  send('n1', `CAL=${v}`);
+};
+$('n1-zero').onclick = () => send('n1', 'OFS=0');
+$('clear').onclick = () => ($('log').textContent = '');
+log('Ready. Power both nodes, then press Connect.');
+</script>
+</body>
+</html>

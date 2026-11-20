@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FC26 Node Wiring</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #1b1f24; --muted: #5f6b7a; --line: #d9dee4;
+    --board: #e8f0fb; --boardline: #3b6fb6; --mod: #f2f4f7; --pin: #1b1f24; --unused: #a8b0ba;
+    --w-red: #d32f2f; --w-black: #263238; --w-yellow: #c99700; --w-green: #2e7d32; --w-blue: #1565c0;
+    --w-white: #8d99a6; --w-orange: #e65100; --w-purple: #7b1fa2; --mains: #fff1e6; --mainsline: #e65100;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --card: #171b21; --text: #e6e9ed; --muted: #95a0ad; --line: #2c333c;
+      --board: #15233a; --boardline: #5b8fd8; --mod: #1f252d; --pin: #e6e9ed; --unused: #56606b;
+      --w-red: #ff6b6b; --w-black: #c9d1d9; --w-yellow: #f2c94c; --w-green: #4cc76a; --w-blue: #5aa9ff;
+      --w-white: #b7c2cd; --w-orange: #ff9a4d; --w-purple: #c77dff; --mains: #2a1a10; --mainsline: #ff9a4d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 32px 0 8px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  p, li { color: var(--text); }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; overflow-x: auto; }
+  svg { display: block; width: 100%; height: auto; min-width: 720px; }
+  svg text { fill: var(--text); font: 13px system-ui, sans-serif; }
+  svg .small { font-size: 11px; fill: var(--muted); }
+  svg .title { font-weight: 650; font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .tablewrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 6px 8px; }
+  .warn { border: 1px solid var(--mainsline); background: var(--mains); border-radius: 14px; padding: 12px 16px; }
+  .warn h3 { margin-top: 4px; color: var(--mainsline); }
+  code { background: var(--mod); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>FC26 Node Wiring</h1>
+  <p class="muted">Pin-to-pin wiring for the two ESP32-C3 Super Mini nodes. Node 1 measures the PT100, Node 2 drives the 220V hooter. Node 2 makes its own Wi-Fi network (FC26-NET, no router) that Node 1 joins; the browser test page or the Flutter app talks to both nodes over BLE.</p>
+  <p class="muted">The pin order drawn is the common Super Mini layout with the USB-C at the top. <b>Always go by the labels printed on your board.</b> Tags like <b>3V3</b>, <b>GND</b> and <b>5V</b> mean "connect to that pin"; every GND on a node is the same wire.</p>
+
+  <h2>Buy before you solder (₹20 total)</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Part</th><th>Where</th><th>Why</th></tr>
+    <tr><td><b>1 kΩ resistor, 1% or better</b> (0.1% if the shop has it)</td><td>Node 1, Rref</td><td>The PT100 needs a reference resistor to measure against. Its tolerance becomes your temperature error: 1% ≈ ±2.5 °C before calibration, 0.1% ≈ ±0.25 °C. Calibrate on the test page either way.</td></tr>
+    <tr><td><b>1 kΩ resistor</b> (any)</td><td>Node 2, transistor base</td><td>Limits ESP32 pin current to ~2.6 mA. Don't use the kit's 100 Ω here: it pulls ~26 mA from the pin, above the ESP32-C3's ~20 mA recommendation, and that 100 Ω is needed for Node 2's LED.</td></tr>
+    <tr><td><b>2 × inline fuse holder + 1 A fuse</b></td><td>Both nodes, mains live wire</td><td>Hi-Link datasheet asks for an input fuse. Node 2's fuse also protects the hooter circuit.</td></tr>
+  </table></div>
+
+  <!-- ===================== NODE 1 ===================== -->
+  <h2>Node 1 · ESP32-C3 + ADS1115 + PT100 (2- or 3-wire)</h2>
+  <div class="card"><svg id="node1" viewBox="0 0 1000 560" role="img" aria-label="Node 1 wiring diagram"></svg></div>
+
+  <h3>Pin-to-pin</h3>
+  <div class="tablewrap"><table>
+    <tr><th>From</th><th>To</th><th>Wire</th><th>Notes</th></tr>
+    <tr><td>Hi-Link <b>+Vo</b></td><td>ESP32 <b>5V</b></td><td><span class="sw" style="background:var(--w-red)"></span>red</td><td>Power. <b>Never plug USB in while the Hi-Link is on mains</b>: both drive the same 5V line.</td></tr>
+    <tr><td>Hi-Link <b>−Vo</b></td><td>ESP32 <b>GND</b></td><td><span class="sw" style="background:var(--w-black)"></span>black</td><td></td></tr>
+    <tr><td>ESP32 <b>3V3</b></td><td>ADS1115 <b>VDD</b>, ADS1115 <b>A0</b>, top of <b>Rref</b></td><td><span class="sw" style="background:var(--w-red)"></span>red</td><td>A0 measures the 3V3 rail so supply drift cancels out.</td></tr>
+    <tr><td>ESP32 <b>GND</b></td><td>ADS1115 <b>GND</b> and <b>ADDR</b></td><td><span class="sw" style="background:var(--w-black)"></span>black</td><td>ADDR → GND sets I2C address 0x48.</td></tr>
+    <tr><td>ESP32 <b>GPIO5</b></td><td>ADS1115 <b>SDA</b></td><td><span class="sw" style="background:var(--w-blue)"></span>blue</td><td>I2C data</td></tr>
+    <tr><td>ESP32 <b>GPIO6</b></td><td>ADS1115 <b>SCL</b></td><td><span class="sw" style="background:var(--w-yellow)"></span>yellow</td><td>I2C clock</td></tr>
+    <tr><td>Bottom of <b>Rref</b></td><td>ADS1115 <b>A1</b> and PT100 <b>lead A</b></td><td><span class="sw" style="background:var(--w-green)"></span>green</td><td>Lead A and lead B are the two <b>same-colour</b> probe wires (either way round).</td></tr>
+    <tr><td>PT100 <b>lead B</b></td><td>ADS1115 <b>A2</b></td><td><span class="sw" style="background:var(--w-purple)"></span>purple</td><td>Sense wire, carries no current. Used to cancel the cable resistance, <b>only when <code>WIRES = 3</code></b> in the sketch (the default is 2, which ignores A2).</td></tr>
+    <tr><td>PT100 <b>lead C</b> (odd colour)</td><td>ESP32 <b>GND</b></td><td><span class="sw" style="background:var(--w-black)"></span>black</td><td></td></tr>
+    <tr><td>ADS1115 <b>A3</b>, <b>ALRT</b></td><td>—</td><td>—</td><td>leave unconnected</td></tr>
+  </table></div>
+  <p class="muted">Check the probe with a multimeter first: the two same-colour wires read ~0–2 Ω to each other; either of them to the odd-colour wire reads ~108–112 Ω at room temperature. With a 3-wire probe, set <code>WIRES = 3</code> at the top of <code>node1_temperature.ino</code> to cancel the cable resistance. Node 1 has no LED: watch its Serial output.</p>
+
+  <!-- ===================== NODE 2 ===================== -->
+  <h2>Node 2 · ESP32-C3 + 5V relay + 2N2222 + 1N4007 + TTP223 + RGB LED + 220V hooter</h2>
+  <div class="card"><svg id="node2" viewBox="0 0 1000 600" role="img" aria-label="Node 2 wiring diagram"></svg></div>
+
+  <h3>Pin-to-pin</h3>
+  <div class="tablewrap"><table>
+    <tr><th>From</th><th>To</th><th>Notes</th></tr>
+    <tr><td>Hi-Link <b>+Vo</b></td><td>ESP32 <b>5V</b> and relay <b>coil +</b></td><td>The relay coil runs from 5V (about 70–90 mA). The Hi-Link gives 600 mA, plenty.</td></tr>
+    <tr><td>Hi-Link <b>−Vo</b></td><td>ESP32 <b>GND</b></td><td></td></tr>
+    <tr><td>ESP32 <b>GPIO10</b></td><td><b>1 kΩ</b> → 2N2222 <b>base</b></td><td>HIGH = relay on.</td></tr>
+    <tr><td>2N2222 <b>emitter</b></td><td>ESP32 <b>GND</b></td><td></td></tr>
+    <tr><td>2N2222 <b>collector</b></td><td>relay <b>coil −</b></td><td>The transistor switches the coil's low side.</td></tr>
+    <tr><td>1N4007 <b>stripe (cathode)</b></td><td>relay <b>coil +</b> (5V)</td><td rowspan="2">Diode goes <b>across the coil</b>, reverse-biased. It absorbs the coil's kick when it switches off. Backwards = a dead short on 5V.</td></tr>
+    <tr><td>1N4007 <b>anode</b></td><td>relay <b>coil −</b> (collector)</td></tr>
+    <tr><td>TTP223 <b>VCC</b> / <b>GND</b></td><td>ESP32 <b>3V3</b> / <b>GND</b></td><td>3V3, not 5V, so its output is safe for the ESP32.</td></tr>
+    <tr><td>TTP223 <b>I/O</b> (SIG)</td><td>ESP32 <b>GPIO5</b></td><td>Leave the A and B solder pads open (momentary, active-HIGH).</td></tr>
+    <tr><td>ESP32 <b>GPIO4</b> / <b>GPIO3</b> / <b>GPIO1</b></td><td>LED <b>R</b> / <b>G</b> / <b>B</b></td><td>The firmware pulls a leg LOW to light it.</td></tr>
+    <tr><td>LED <b>common anode</b> (longest leg)</td><td><b>100 Ω</b> → ESP32 <b>3V3</b></td><td>Use a <b>common-anode</b> LED. A common-cathode one shows inverted colours (white when it should be off). One shared resistor is fine: the code lights one colour at a time.</td></tr>
+  </table></div>
+  <p class="muted"><b>2N2222 legs:</b> most TO-92 parts (PN2222A) are <b>E-B-C</b> with the flat face toward you, legs down, but some (P2N2222A) are <b>C-B-E</b>. Check yours with a multimeter's diode mode: the base is the leg that reads ~0.6 V to both other legs (red probe on base).</p>
+  <p class="muted"><b>Bare relay pins (SRD-05VDC-SL-C style):</b> two coil pins, plus COM, NO and NC. Find the coil with a multimeter (~70 Ω between the two coil pins). Check the contact rating printed on the relay: it must be at least <b>250 VAC</b> and more than the hooter's current.</p>
+
+  <div class="warn">
+    <h3>⚠️ 220V: read before wiring either node</h3>
+    <ul>
+      <li>Switch the <b>live (L)</b> wire through the relay, never neutral. Use <b>COM → NO</b>, so the hooter is silent whenever the board is off or rebooting.</li>
+      <li>A <b>1 A fuse</b> on live, before anything else, on each node. <b>Node 1:</b> mains L → fuse → Hi-Link AC L; mains N → Hi-Link AC N. <b>Node 2:</b> mains L → fuse, then from the fused side to both the Hi-Link AC L and the relay COM; mains N → Hi-Link AC N and the hooter.</li>
+      <li>Everything that touches 220V (Hi-Link input pins, relay contacts, fuse, hooter terminals) goes <b>inside a closed plastic box</b>. Use strain relief on the mains lead. Keep mains tracks/wires ≥ 6 mm away from the low-voltage side. If the hooter has a metal body or an earth terminal, connect it to mains earth.</li>
+      <li><b>Never connect USB while the board is on mains.</b> Flash the firmware first with USB only, then unplug USB, then plug in mains.</li>
+      <li>Bench-test Node 2 with a <b>bulb</b> in place of the hooter first. Ask the venue whether a mains device on stage is allowed, and keep the plug within reach.</li>
+    </ul>
+  </div>
+
+  <h2>LED colours</h2>
+  <p class="muted">Only Node 2 has an LED. Node 1 reports over Serial (115200 baud).</p>
+  <div class="tablewrap"><table>
+    <tr><th>Colour</th><th>Node 2 (siren)</th></tr>
+    <tr><td>R → G → B at power-up</td><td>LED self-test. A missing colour = that leg isn't connected.</td></tr>
+    <tr><td>Green</td><td>solid: all normal</td></tr>
+    <tr><td>Blue</td><td>slow blink: no data from Node 1</td></tr>
+    <tr><td>Red</td><td>slow blink: above setpoint, waiting · fast blink: hooter ON · solid: acknowledged, still hot</td></tr>
+  </table></div>
+</main>
+
+<script>
+// Small SVG drawing helpers. Colours come from CSS variables so both themes work.
+const NS = 'http://www.w3.org/2000/svg';
+function el(svg, name, attrs, text) {
+  const e = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text != null) e.textContent = text;
+  svg.appendChild(e);
+  return e;
+}
+const C = (n) => `var(--${n})`;
+const text = (s, x, y, t, cls = '', anchor = 'start') => el(s, 'text', { x, y, class: cls, 'text-anchor': anchor, 'dominant-baseline': 'middle' }, t);
+const wire = (s, pts, color, width = 2.5) =>
+  el(s, 'polyline', { points: pts.map((p) => p.join(',')).join(' '), fill: 'none', stroke: C(color), 'stroke-width': width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+const dot = (s, x, y, color = 'pin') => el(s, 'circle', { cx: x, cy: y, r: 4, fill: C(color) });
+
+function box(s, x, y, w, h, title, sub, fill = 'mod', stroke = 'line') {
+  el(s, 'rect', { x, y, width: w, height: h, rx: 10, fill: C(fill), stroke: C(stroke), 'stroke-width': 1.5 });
+  text(s, x + w / 2, y + 18, title, 'title', 'middle');
+  if (sub) text(s, x + w / 2, y + 35, sub, 'small', 'middle');
+}
+
+// A pin on a box edge: side 'l' or 'r'. Draws the pad and its label inside the box.
+function pin(s, x, y, label, side, unused = false) {
+  el(s, 'rect', { x: x - 5, y: y - 5, width: 10, height: 10, rx: 2, fill: unused ? C('unused') : C('pin') });
+  text(s, side === 'l' ? x + 10 : x - 10, y, label, unused ? 'small' : '', side === 'l' ? 'start' : 'end');
+}
+
+// Net tag ("connect to this rail").
+function tag(s, x, y, label, color, dir = 'right') {
+  const w = label.length * 7.5 + 14;
+  const gx = dir === 'right' ? x : x - w;
+  el(s, 'rect', { x: gx, y: y - 10, width: w, height: 20, rx: 10, fill: 'none', stroke: C(color), 'stroke-width': 2 });
+  text(s, gx + w / 2, y + 1, label, '', 'middle').setAttribute('style', `fill:${C(color)};font-weight:650;font-size:12px`);
+}
+
+// Resistor zig-zag between two points (horizontal or vertical).
+function resistor(s, x1, y1, x2, y2, label, color = 'pin', labelSide = 1) {
+  const vertical = x1 === x2;
+  const len = vertical ? y2 - y1 : x2 - x1;
+  const body = Math.min(44, Math.abs(len) * 0.6);
+  const start = (Math.abs(len) - body) / 2;
+  const pts = [[x1, y1]];
+  const at = (t, off) => (vertical ? [x1 + off, y1 + Math.sign(len) * t] : [x1 + Math.sign(len) * t, y1 + off]);
+  pts.push(at(start, 0));
+  for (let i = 0; i < 6; i++) pts.push(at(start + (body / 6) * (i + 0.5), i % 2 ? -7 : 7));
+  pts.push(at(start + body, 0), [x2, y2]);
+  wire(s, pts, color, 2);
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  if (vertical) text(s, mx + 14 * labelSide, my, label, '', labelSide > 0 ? 'start' : 'end');
+  else text(s, mx, my - 18 * labelSide, label, '', 'middle');
+}
+
+// ESP32-C3 Super Mini, USB-C at the top. Returns pin coordinates.
+function esp32(s, x, y, used) {
+  const w = 150, h = 340, step = 36, top = y + 50;
+  box(s, x, y, w, h, 'ESP32-C3', 'Super Mini', 'board', 'boardline');
+  el(s, 'rect', { x: x + w / 2 - 22, y: y - 8, width: 44, height: 16, rx: 5, fill: C('unused') });
+  text(s, x + w / 2, y + h - 14, 'USB-C on top', 'small', 'middle');
+  const left = ['5V', 'GND', '3V3', 'GPIO4', 'GPIO3', 'GPIO2', 'GPIO1', 'GPIO0'];
+  const right = ['GPIO5', 'GPIO6', 'GPIO7', 'GPIO8', 'GPIO9', 'GPIO10', 'GPIO20', 'GPIO21'];
+  const p = {};
+  left.forEach((n, i) => { p[n] = [x, top + i * step]; pin(s, x, top + i * step, n, 'l', !used.includes(n)); });
+  right.forEach((n, i) => { p[n] = [x + w, top + i * step]; pin(s, x + w, top + i * step, n, 'r', !used.includes(n)); });
+  return p;
+}
+
+function hilink(s, x, y, mainsTag) {
+  box(s, x, y, 170, 92, 'Hi-Link 5V 0.6A', 'HLK-PM01 · 220V AC → 5V DC', 'mains', 'mainsline');
+  pin(s, x, y + 56, 'AC L', 'l'); pin(s, x, y + 78, 'AC N', 'l');
+  pin(s, x + 170, y + 56, '+Vo', 'r'); pin(s, x + 170, y + 78, '−Vo', 'r');
+  wire(s, [[x, y + 56], [x - 20, y + 56]], 'w-orange'); tag(s, x - 20, y + 56, mainsTag, 'w-orange', 'left');
+  wire(s, [[x, y + 78], [x - 20, y + 78]], 'w-orange'); tag(s, x - 20, y + 78, 'N', 'w-orange', 'left');
+  return { vplus: [x + 170, y + 56], vminus: [x + 170, y + 78] };
+}
+
+function rgbLed(s, x, y, esp) {
+  box(s, x, y, 150, 150, 'RGB LED', 'common anode');
+  const legs = [['R', 'GPIO4', 'w-red'], ['G', 'GPIO3', 'w-green'], ['B', 'GPIO1', 'w-blue']];
+  legs.forEach(([leg, gp, col]) => {
+    const [ex, ey] = esp[gp];
+    pin(s, x + 150, ey, leg, 'r');
+    wire(s, [[x + 150, ey], [ex, ey]], col);
+  });
+  // common anode → 100 Ω → 3V3 (the firmware pulls R/G/B LOW to light them)
+  const cx = x + 40, cy = y + 150;
+  pin(s, cx, cy, '', 'l');
+  text(s, cx + 10, cy - 14, 'A (longest leg)', 'small');
+  resistor(s, cx, cy, cx, cy + 70, '100 Ω', 'pin', 1);
+  tag(s, cx - 24, cy + 84, '3V3', 'w-red');
+}
+
+// ---------------- Node 1 ----------------
+(function node1() {
+  const s = document.getElementById('node1');
+  const esp = esp32(s, 330, 100, ['5V', 'GND', '3V3', 'GPIO5', 'GPIO6']);
+  const hl = hilink(s, 100, 10, 'L (fused)');
+  wire(s, [hl.vplus, [310, hl.vplus[1]], [310, esp['5V'][1]], esp['5V']], 'w-red');
+  wire(s, [hl.vminus, [290, hl.vminus[1]], [290, esp.GND[1]], esp.GND], 'w-black');
+  wire(s, [esp['3V3'], [300, esp['3V3'][1]]], 'w-red'); tag(s, 300, esp['3V3'][1], '3V3', 'w-red', 'left');
+
+  // ADS1115
+  const ax = 600, ay = 100;
+  box(s, ax, ay, 150, 300, 'ADS1115', '16-bit ADC · I2C 0x48');
+  const L = { SDA: esp.GPIO5[1], SCL: esp.GPIO6[1], VDD: 250, GND: 286, ADDR: 322, ALRT: 358 };
+  Object.entries(L).forEach(([n, y]) => pin(s, ax, y, n, 'l', n === 'ALRT'));
+  wire(s, [esp.GPIO5, [ax, L.SDA]], 'w-blue'); text(s, 535, L.SDA - 10, 'SDA', 'small', 'middle');
+  wire(s, [esp.GPIO6, [ax, L.SCL]], 'w-yellow'); text(s, 535, L.SCL - 10, 'SCL', 'small', 'middle');
+  wire(s, [[ax, L.VDD], [570, L.VDD]], 'w-red'); tag(s, 570, L.VDD, '3V3', 'w-red', 'left');
+  wire(s, [[ax, L.GND], [570, L.GND]], 'w-black'); tag(s, 570, L.GND, 'GND', 'w-black', 'left');
+  wire(s, [[ax, L.ADDR], [570, L.ADDR]], 'w-black'); tag(s, 570, L.ADDR, 'GND', 'w-black', 'left');
+  const R = { A0: 150, A1: 240, A2: 300, A3: 360 };
+  Object.entries(R).forEach(([n, y]) => pin(s, ax + 150, y, n, 'r', n === 'A3'));
+
+  // Rref between 3V3 (A0) and A1
+  const rx = 810;
+  wire(s, [[ax + 150, R.A0], [rx, R.A0]], 'w-red');
+  wire(s, [[rx, R.A0], [rx, 120]], 'w-red'); tag(s, rx - 20, 110, '3V3', 'w-red');
+  dot(s, rx, R.A0);
+  resistor(s, rx, R.A0, rx, R.A1, 'Rref 1 kΩ', 'pin', -1);
+  dot(s, rx, R.A1);
+  wire(s, [[ax + 150, R.A1], [rx, R.A1]], 'w-green');
+
+  // PT100 probe
+  const px = 890;
+  box(s, px, 200, 100, 220, 'PT100', '2- or 3-wire');
+  wire(s, [[rx, R.A1], [px, R.A1]], 'w-green'); text(s, 850, R.A1 - 12, 'lead A', 'small', 'middle');
+  wire(s, [[ax + 150, R.A2], [px, R.A2]], 'w-purple'); text(s, 850, R.A2 - 12, 'lead B', 'small', 'middle');
+  const lc = 390;
+  wire(s, [[px, lc], [830, lc], [830, 430]], 'w-black'); tag(s, 806, 444, 'GND', 'w-black');
+  text(s, 862, lc - 12, 'lead C', 'small', 'middle');
+  // inside the probe: A and B join, element to C
+  wire(s, [[px, R.A1], [925, R.A1], [925, R.A2], [px, R.A2]], 'w-red', 2);
+  wire(s, [[925, R.A2], [925, 312]], 'pin', 2);
+  resistor(s, 925, 312, 925, lc - 10, '', 'pin');
+  wire(s, [[925, lc - 10], [925, lc], [px, lc]], 'w-white', 2);
+  text(s, 940, R.A1 + 30, 'same', 'small'); text(s, 940, R.A1 + 44, 'colour', 'small');
+  text(s, 940, lc - 30, 'odd', 'small'); text(s, 940, lc - 16, 'colour', 'small');
+  text(s, 700, 520, 'Rref: measure it with a multimeter and set RREF in the sketch to that value.', 'small', 'middle');
+})();
+
+// ---------------- Node 2 ----------------
+(function node2() {
+  const s = document.getElementById('node2');
+  const esp = esp32(s, 330, 100, ['5V', 'GND', '3V3', 'GPIO4', 'GPIO3', 'GPIO1', 'GPIO5', 'GPIO10']);
+  const hl = hilink(s, 100, 10, 'L (fused)');
+  wire(s, [hl.vplus, [310, hl.vplus[1]], [310, esp['5V'][1]], esp['5V']], 'w-red');
+  wire(s, [hl.vminus, [290, hl.vminus[1]], [290, esp.GND[1]], esp.GND], 'w-black');
+  dot(s, 310, hl.vplus[1], 'w-red');
+  wire(s, [[310, hl.vplus[1]], [310, 30], [330, 30]], 'w-red'); tag(s, 330, 30, '5V → relay coil +', 'w-red');
+  wire(s, [esp['3V3'], [300, esp['3V3'][1]]], 'w-red'); tag(s, 300, esp['3V3'][1], '3V3', 'w-red', 'left');
+  rgbLed(s, 90, 210, esp);
+
+  // TTP223
+  const tx = 600, ty = 100;
+  box(s, tx, ty, 150, 110, 'TTP223', 'touch · pads A, B open');
+  const ioY = esp.GPIO5[1];
+  pin(s, tx, ioY, 'I/O', 'l'); pin(s, tx, 176, 'VCC', 'l'); pin(s, tx, 198, 'GND', 'l');
+  wire(s, [esp.GPIO5, [tx, ioY]], 'w-yellow');
+  wire(s, [[tx, 176], [575, 176]], 'w-red'); tag(s, 575, 176, '3V3', 'w-red', 'left');
+  wire(s, [[tx, 198], [575, 198]], 'w-black'); tag(s, 575, 198, 'GND', 'w-black', 'left');
+
+  // Relay driver: GPIO10 → Rb → base (drawn lower so it clears the TTP223)
+  const gy = 450;                      // transistor base height
+  const bx = 640;                      // base bar x
+  wire(s, [esp.GPIO10, [505, esp.GPIO10[1]], [505, gy]], 'w-blue');
+  resistor(s, 505, gy, bx, gy, '1 kΩ (or 100 Ω)', 'w-blue');
+  el(s, 'line', { x1: bx, y1: gy - 22, x2: bx, y2: gy + 22, stroke: C('pin'), 'stroke-width': 4 });
+  el(s, 'circle', { cx: bx + 14, cy: gy, r: 30, fill: 'none', stroke: C('pin'), 'stroke-width': 1.5 });
+  const cx = 668;                      // collector / emitter x
+  const coilTop = 262, coilBot = 384;
+  wire(s, [[bx, gy - 8], [cx, gy - 26], [cx, coilBot]], 'pin', 2);    // collector up to coil −
+  wire(s, [[bx, gy + 8], [cx, gy + 26], [cx, 516]], 'pin', 2);        // emitter down to GND
+  el(s, 'polygon', { points: `${cx - 2},${gy + 25} ${cx - 13},${gy + 23} ${cx - 6},${gy + 15}`, fill: C('pin') });
+  text(s, bx - 6, gy + 46, '2N2222', '', 'end');
+  text(s, cx + 8, gy - 34, 'C', 'small'); text(s, bx - 12, gy - 14, 'B', 'small', 'end'); text(s, cx + 8, gy + 34, 'E', 'small');
+  tag(s, cx - 24, 530, 'GND', 'w-black');
+
+  // Relay coil (vertical) between coil+ (top, 5V) and coil− (collector)
+  const rTop = coilTop + 30, rBot = coilTop + 86, mid = (rTop + rBot) / 2;
+  el(s, 'rect', { x: cx - 16, y: rTop, width: 32, height: rBot - rTop, rx: 4, fill: C('mod'), stroke: C('pin'), 'stroke-width': 2 });
+  text(s, cx, mid, 'coil', 'small', 'middle');
+  wire(s, [[cx, rBot], [cx, coilBot]], 'pin', 2);
+  wire(s, [[cx, rTop], [cx, coilTop]], 'w-red', 2);
+  tag(s, cx - 18, coilTop - 12, '5V', 'w-red');
+  dot(s, cx, coilTop + 12); dot(s, cx, coilBot);
+  // 1N4007 across the coil, stripe to +5V
+  const dx = 730;
+  wire(s, [[cx, coilTop + 12], [dx, coilTop + 12], [dx, mid - 12]], 'pin', 2);
+  wire(s, [[dx, mid + 14], [dx, coilBot], [cx, coilBot]], 'pin', 2);
+  el(s, 'polygon', { points: `${dx - 11},${mid + 14} ${dx + 11},${mid + 14} ${dx},${mid - 10}`, fill: C('pin') });   // points up to the stripe
+  el(s, 'line', { x1: dx - 12, y1: mid - 12, x2: dx + 12, y2: mid - 12, stroke: C('pin'), 'stroke-width': 4 });
+  text(s, dx + 18, mid - 6, '1N4007', ''); text(s, dx + 18, mid + 10, 'stripe up', 'small');
+  text(s, cx - 24, mid - 8, 'Relay', '', 'end'); text(s, cx - 24, mid + 8, '5V coil', 'small', 'end');
+
+  // Relay contacts + mains
+  const kx = 850;
+  el(s, 'rect', { x: kx - 45, y: 300, width: 190, height: 260, rx: 12, fill: C('mains'), stroke: C('mainsline'), 'stroke-width': 1.5, 'stroke-dasharray': '6 4' });
+  text(s, kx + 50, 318, '220V side · inside the box', 'small', 'middle');
+  text(s, kx + 50, 334, 'relay contacts', 'small', 'middle');
+  const com = [kx, 395], no = [kx + 60, 365], nc = [kx + 60, 420];
+  dot(s, ...com); dot(s, ...no); dot(s, ...nc, 'unused');
+  wire(s, [com, [no[0] - 4, no[1] + 4]], 'pin', 3);
+  text(s, com[0] + 6, com[1] + 14, 'COM', 'small'); text(s, no[0] - 6, no[1] - 12, 'NO', 'small', 'end'); text(s, nc[0] + 8, nc[1], 'NC', 'small');
+  // L in → fuse → COM, with the Hi-Link branch taken AFTER the fuse
+  const lx = kx - 30;
+  wire(s, [[lx, 520], [lx, com[1]], com], 'w-orange');
+  el(s, 'rect', { x: lx - 10, y: 470, width: 20, height: 34, rx: 4, fill: C('card'), stroke: C('w-orange'), 'stroke-width': 2 });
+  text(s, lx + 16, 487, '1 A fuse', 'small');
+  tag(s, lx, 535, 'L in', 'w-orange');
+  dot(s, lx, 440, 'w-orange'); wire(s, [[lx, 440], [lx + 12, 440]], 'w-orange'); tag(s, lx + 12, 440, 'Hi-Link L', 'w-orange');
+  // NO → hooter → N
+  const hx = 958;
+  wire(s, [no, [hx, no[1]], [hx, 440]], 'w-orange');
+  el(s, 'rect', { x: hx - 24, y: 440, width: 48, height: 40, rx: 8, fill: C('card'), stroke: C('w-orange'), 'stroke-width': 2 });
+  text(s, hx, 460, '📢', '', 'middle');
+  text(s, hx - 30, 470, 'hooter', 'small', 'end');
+  wire(s, [[hx, 480], [hx, 535], [hx - 40, 535]], 'w-orange'); tag(s, hx - 40, 535, 'N', 'w-orange', 'left');
+})();
+</script>
+</body>
+</html>

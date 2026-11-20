@@ -1,0 +1,29 @@
+# OS and editor files
+.DS_Store
+.idea/
+*.iml
+.vscode/
+
+# Build output
+**/build/
+.dart_tool/
+local.properties
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/macos/Flutter/ephemeral/
+
+# Archives (the folders they came from are already in the repository)
+*.zip
+
+# Not for publishing
+# A collaborator's earlier firmware variant (ESP-NOW). Publish only with their consent.
+Utsav/
+# FlutterCon logos and slide backgrounds with the logo baked in: third-party trademarks.
+Presentation/FlutteCon-Logo/
+Presentation/assets/logos/
+Presentation/assets/backgrounds/
+Presentation/assets/upload-to-drive/
+# Another person's photo.
+Presentation/assets/photos/photo-utsav.jpg
+# Moderator notes for a different session (the AI-costs roundtable).
+Presentation/roundtable-ai-costs-moderator-kit.*

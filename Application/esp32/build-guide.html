@@ -1,0 +1,1169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FC26 Build Guide</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #1b1f24; --muted: #5f6b7a; --line: #d9dee4;
+    --board: #e8f0fb; --boardline: #3b6fb6; --mod: #f2f4f7; --pin: #1b1f24; --unused: #a8b0ba;
+    --w-red: #d32f2f; --w-black: #263238; --w-yellow: #c99700; --w-green: #2e7d32; --w-blue: #1565c0;
+    --w-white: #8d99a6; --w-orange: #e65100; --w-purple: #7b1fa2; --mains: #fff1e6; --mainsline: #e65100;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --card: #171b21; --text: #e6e9ed; --muted: #95a0ad; --line: #2c333c;
+      --board: #15233a; --boardline: #5b8fd8; --mod: #1f252d; --pin: #e6e9ed; --unused: #56606b;
+      --w-red: #ff6b6b; --w-black: #c9d1d9; --w-yellow: #f2c94c; --w-green: #4cc76a; --w-blue: #5aa9ff;
+      --w-white: #b7c2cd; --w-orange: #ff9a4d; --w-purple: #c77dff; --mains: #2a1a10; --mainsline: #ff9a4d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 32px 0 8px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  p, li { color: var(--text); }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; overflow-x: auto; }
+  svg { display: block; width: 100%; height: auto; min-width: 720px; }
+  svg text { fill: var(--text); font: 13px system-ui, sans-serif; }
+  svg .small { font-size: 11px; fill: var(--muted); }
+  svg .title { font-weight: 650; font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .tablewrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 6px 8px; }
+  .warn { border: 1px solid var(--mainsline); background: var(--mains); border-radius: 14px; padding: 12px 16px; }
+  .warn h3 { margin-top: 4px; color: var(--mainsline); }
+  code { background: var(--mod); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+
+  nav.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 4px; }
+  nav.toc a { font-size: 13px; text-decoration: none; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; }
+  nav.toc a:hover { border-color: var(--boardline); }
+  h2 { scroll-margin-top: 12px; }
+  pre.flow { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; overflow-x: auto; font-size: 13px; line-height: 1.4; }
+  ol li, ul li { margin: 3px 0; }
+  .codehead { display: flex; align-items: center; gap: 8px; margin: 22px 0 6px; flex-wrap: wrap; }
+  .codehead h3 { margin: 0; flex: 1; font-family: ui-monospace, Menlo, monospace; }
+  .codehead button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 8px; padding: 5px 11px; cursor: pointer; }
+  pre.code { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; overflow: auto; max-height: 460px; font: 12px/1.45 ui-monospace, Menlo, monospace; margin: 0; }
+  .note { border-left: 3px solid var(--boardline); padding: 4px 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>FC26 Build Guide</h1>
+  <p class="muted">FlutterCon India 2026 smart-home demo: two ESP32-C3 Super Mini nodes and one Flutter display app, Jalotsav Panel. Node 1 measures a PT100. Node 2 sounds a 220V hooter when it gets too hot. The display shows it all over Bluetooth. Everything you need is on this page: wiring, setup, tests, the app and the full firmware.</p>
+  <nav class="toc">
+    <a href="#how">How it works</a><a href="#app">The display app</a><a href="#buy">Buy list</a><a href="#wire1">Node 1 wiring</a><a href="#wire2">Node 2 wiring</a>
+    <a href="#setup">Arduino setup</a><a href="#first">First test</a><a href="#browser">Browser test</a><a href="#led">LEDs</a><a href="#ble">BLE contract</a><a href="#code">Firmware</a>
+  </nav>
+
+  <h2 id="how">How it works</h2>
+  <pre class="flow"> Node 1 (PT100) ──Wi-Fi FC26-NET, UDP 1×/s──▶ Node 2 (siren, access point): decides the alarm, drives the hooter
+      │                                   │
+      │ BLE: temperature                  │ BLE: alarm state, Acknowledge, Test, limits
+      ▼                                   ▼
+   Display: Jalotsav Panel (Flutter)
+     main:   Raspberry Pi + touchscreen
+     backup: phone / tablet / Mac  (or ble-test.html in Chrome)</pre>
+  <ul>
+    <li><b>Node 2 makes its own Wi-Fi network, no router.</b> Node 2 is an access point called <b>FC26-NET</b> (password <code>fc26-panel</code>, channel 1, 192.168.4.1). Node 1 joins it and sends one UDP packet a second to port 4626, and rejoins by itself if Node 2 reboots. Node 2 only accepts packets that start with <code>FC26</code> and carry the same <code>NETWORK_ID</code>.</li>
+    <li><b>Wi-Fi power is 8.5 dBm on purpose.</b> ESP32-C3 Super Mini antennas are poorly matched; at full power their Wi-Fi often doesn't get out at all. Don't raise <code>FC26_WIFI_TX_POWER</code>.</li>
+    <li><b>Node 2 is the brain</b>, so the alarm works with no phone or laptop around:
+      <ul>
+        <li>temperature ≥ <b>setpoint</b> for <b>delay</b> seconds → <b>ALARM</b>, hooter ON</li>
+        <li>touch the <b>TTP223</b> → <b>ACKNOWLEDGED</b>, hooter OFF (stays off until it cools)</li>
+        <li>temperature ≤ setpoint − <b>hysteresis</b> → back to <b>NORMAL</b> by itself</li>
+        <li>hold the TTP223 for 2 s while normal → 2-second hooter test</li>
+        <li>Node 1 silent for 6 s, or reporting a probe fault → hooter OFF, LED blinks blue</li>
+        <li>hooter ON for 2 minutes → silences itself</li>
+      </ul></li>
+    <li><b>BLE is for watching and settings.</b> The display app connects to <b>both</b> nodes: Node 1 (<code>FC26-TEMP</code>) for the temperature, Node 2 (<code>FC26-SIREN</code>) for the alarm, the hooter and the limits. The alarm runs on Node 2, so it works with the display off. Each board takes <b>one</b> BLE connection: close the app before using the test page.</li>
+  </ul>
+  <p>Defaults: setpoint <b>35 °C</b>, hysteresis <b>2 °C</b> (clears at 33 °C), delay <b>3 s</b>.</p>
+
+  <h2 id="app">The display: Jalotsav Panel</h2>
+  <p>One Flutter app, <b>Jalotsav Panel</b> (<code>Application/jalotsav_panel</code>, ID <code>com.jalotsav.smartpanel</code>), is the display:</p>
+  <ul>
+    <li><b>Main display: Raspberry Pi with a touchscreen</b>, running the app through flutter-pi.</li>
+    <li><b>Backup display: a phone or tablet</b> (Android, iOS) or a Mac, running the same app. Same screens, same Bluetooth links.</li>
+  </ul>
+  <p>What it does:</p>
+  <ul>
+    <li><b>Connects to both nodes by itself</b>: <code>FC26-TEMP</code> for the temperature (the main source) and <code>FC26-SIREN</code> for the alarm, the hooter and the limits. No pairing. The two dots in the top bar turn green when each board is linked.</li>
+    <li><b>Live</b>: temperature gauge, alarm state (Normal / Rising / Alarm / Acknowledged), siren card with <b>Acknowledge</b> and <b>Test siren</b>, last 60 s chart. <b>Trend</b> and <b>Alarms</b> show history.</li>
+    <li><b>Settings</b>: setpoint, hysteresis and delay (saved on Node 2), <b>PT100 calibration</b> (set the real temperature with ± buttons, tap Calibrate; saved on Node 1), and light/dark theme.</li>
+    <li><b>Backup siren on the display</b>: if Node 2 isn't linked, the app applies the same alarm rules to Node 1's readings and <b>sounds an alarm itself</b> (Android alarm volume). Acknowledge silences it; it stops when the probe cools or when Node 2 links and takes over. Limits changed while Node 2 is offline aren't saved.</li>
+    <li><b>One display at a time</b>: each board takes one Bluetooth connection, so close the app on one device (or the test page) before connecting another.</li>
+  </ul>
+  <pre class="flow">cd jalotsav_panel
+flutter run          # on a connected phone; Android asks for "Nearby devices" once</pre>
+  <p class="muted">The pin order drawn is the common Super Mini layout with the USB-C at the top. <b>Always go by the labels printed on your board.</b> Tags like <b>3V3</b>, <b>GND</b> and <b>5V</b> mean "connect to that pin"; every GND on a node is the same wire.</p>
+
+  <h2 id="buy">Buy before you solder (₹20 total)</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Part</th><th>Where</th><th>Why</th></tr>
+    <tr><td><b>1 kΩ resistor, 1% or better</b> (0.1% if the shop has it)</td><td>Node 1, Rref</td><td>The PT100 needs a reference resistor to measure against. Its tolerance becomes your temperature error: 1% ≈ ±2.5 °C before calibration, 0.1% ≈ ±0.25 °C. Calibrate on the test page either way.</td></tr>
+    <tr><td><b>1 kΩ resistor</b> (any)</td><td>Node 2, transistor base</td><td>Limits ESP32 pin current to ~2.6 mA. Don't use the kit's 100 Ω here: it pulls ~26 mA from the pin, above the ESP32-C3's ~20 mA recommendation, and that 100 Ω is needed for Node 2's LED.</td></tr>
+    <tr><td><b>2 × inline fuse holder + 1 A fuse</b></td><td>Both nodes, mains live wire</td><td>Hi-Link datasheet asks for an input fuse. Node 2's fuse also protects the hooter circuit.</td></tr>
+  </table></div>
+
+  <!-- ===================== NODE 1 ===================== -->
+  <h2 id="wire1">Node 1 · ESP32-C3 + ADS1115 + PT100 (2- or 3-wire)</h2>
+  <div class="card"><svg id="node1" viewBox="0 0 1000 560" role="img" aria-label="Node 1 wiring diagram"></svg></div>
+
+  <h3>Pin-to-pin</h3>
+  <div class="tablewrap"><table>
+    <tr><th>From</th><th>To</th><th>Wire</th><th>Notes</th></tr>
+    <tr><td>Hi-Link <b>+Vo</b></td><td>ESP32 <b>5V</b></td><td><span class="sw" style="background:var(--w-red)"></span>red</td><td>Power. <b>Never plug USB in while the Hi-Link is on mains</b>: both drive the same 5V line.</td></tr>
+    <tr><td>Hi-Link <b>−Vo</b></td><td>ESP32 <b>GND</b></td><td><span class="sw" style="background:var(--w-black)"></span>black</td><td></td></tr>
+    <tr><td>ESP32 <b>3V3</b></td><td>ADS1115 <b>VDD</b>, ADS1115 <b>A0</b>, top of <b>Rref</b></td><td><span class="sw" style="background:var(--w-red)"></span>red</td><td>A0 measures the 3V3 rail so supply drift cancels out.</td></tr>
+    <tr><td>ESP32 <b>GND</b></td><td>ADS1115 <b>GND</b> and <b>ADDR</b></td><td><span class="sw" style="background:var(--w-black)"></span>black</td><td>ADDR → GND sets I2C address 0x48.</td></tr>
+    <tr><td>ESP32 <b>GPIO5</b></td><td>ADS1115 <b>SDA</b></td><td><span class="sw" style="background:var(--w-blue)"></span>blue</td><td>I2C data</td></tr>
+    <tr><td>ESP32 <b>GPIO6</b></td><td>ADS1115 <b>SCL</b></td><td><span class="sw" style="background:var(--w-yellow)"></span>yellow</td><td>I2C clock</td></tr>
+    <tr><td>Bottom of <b>Rref</b></td><td>ADS1115 <b>A1</b> and PT100 <b>lead A</b></td><td><span class="sw" style="background:var(--w-green)"></span>green</td><td>Lead A and lead B are the two <b>same-colour</b> probe wires (either way round).</td></tr>
+    <tr><td>PT100 <b>lead B</b></td><td>ADS1115 <b>A2</b></td><td><span class="sw" style="background:var(--w-purple)"></span>purple</td><td>Sense wire, carries no current. Used to cancel the cable resistance, <b>only when <code>WIRES = 3</code></b> in the sketch (the default is 2, which ignores A2).</td></tr>
+    <tr><td>PT100 <b>lead C</b> (odd colour)</td><td>ESP32 <b>GND</b></td><td><span class="sw" style="background:var(--w-black)"></span>black</td><td></td></tr>
+    <tr><td>ADS1115 <b>A3</b>, <b>ALRT</b></td><td>—</td><td>—</td><td>leave unconnected</td></tr>
+  </table></div>
+  <p class="muted">Check the probe with a multimeter first: the two same-colour wires read ~0–2 Ω to each other; either of them to the odd-colour wire reads ~108–112 Ω at room temperature. With a 3-wire probe, set <code>WIRES = 3</code> at the top of <code>node1_temperature.ino</code> to cancel the cable resistance. Node 1 has no LED: watch its Serial output.</p>
+
+  <!-- ===================== NODE 2 ===================== -->
+  <h2 id="wire2">Node 2 · ESP32-C3 + 5V relay + 2N2222 + 1N4007 + TTP223 + RGB LED + 220V hooter</h2>
+  <div class="card"><svg id="node2" viewBox="0 0 1000 600" role="img" aria-label="Node 2 wiring diagram"></svg></div>
+
+  <h3>Pin-to-pin</h3>
+  <div class="tablewrap"><table>
+    <tr><th>From</th><th>To</th><th>Notes</th></tr>
+    <tr><td>Hi-Link <b>+Vo</b></td><td>ESP32 <b>5V</b> and relay <b>coil +</b></td><td>The relay coil runs from 5V (about 70–90 mA). The Hi-Link gives 600 mA, plenty.</td></tr>
+    <tr><td>Hi-Link <b>−Vo</b></td><td>ESP32 <b>GND</b></td><td></td></tr>
+    <tr><td>ESP32 <b>GPIO10</b></td><td><b>1 kΩ</b> → 2N2222 <b>base</b></td><td>HIGH = relay on.</td></tr>
+    <tr><td>2N2222 <b>emitter</b></td><td>ESP32 <b>GND</b></td><td></td></tr>
+    <tr><td>2N2222 <b>collector</b></td><td>relay <b>coil −</b></td><td>The transistor switches the coil's low side.</td></tr>
+    <tr><td>1N4007 <b>stripe (cathode)</b></td><td>relay <b>coil +</b> (5V)</td><td rowspan="2">Diode goes <b>across the coil</b>, reverse-biased. It absorbs the coil's kick when it switches off. Backwards = a dead short on 5V.</td></tr>
+    <tr><td>1N4007 <b>anode</b></td><td>relay <b>coil −</b> (collector)</td></tr>
+    <tr><td>TTP223 <b>VCC</b> / <b>GND</b></td><td>ESP32 <b>3V3</b> / <b>GND</b></td><td>3V3, not 5V, so its output is safe for the ESP32.</td></tr>
+    <tr><td>TTP223 <b>I/O</b> (SIG)</td><td>ESP32 <b>GPIO5</b></td><td>Leave the A and B solder pads open (momentary, active-HIGH).</td></tr>
+    <tr><td>ESP32 <b>GPIO4</b> / <b>GPIO3</b> / <b>GPIO1</b></td><td>LED <b>R</b> / <b>G</b> / <b>B</b></td><td>The firmware pulls a leg LOW to light it.</td></tr>
+    <tr><td>LED <b>common anode</b> (longest leg)</td><td><b>100 Ω</b> → ESP32 <b>3V3</b></td><td>Use a <b>common-anode</b> LED. A common-cathode one shows inverted colours (white when it should be off). One shared resistor is fine: the code lights one colour at a time.</td></tr>
+  </table></div>
+  <p class="muted"><b>2N2222 legs:</b> most TO-92 parts (PN2222A) are <b>E-B-C</b> with the flat face toward you, legs down, but some (P2N2222A) are <b>C-B-E</b>. Check yours with a multimeter's diode mode: the base is the leg that reads ~0.6 V to both other legs (red probe on base).</p>
+  <p class="muted"><b>Bare relay pins (SRD-05VDC-SL-C style):</b> two coil pins, plus COM, NO and NC. Find the coil with a multimeter (~70 Ω between the two coil pins). Check the contact rating printed on the relay: it must be at least <b>250 VAC</b> and more than the hooter's current.</p>
+
+  <div class="warn">
+    <h3>⚠️ 220V: read before wiring either node</h3>
+    <ul>
+      <li>Switch the <b>live (L)</b> wire through the relay, never neutral. Use <b>COM → NO</b>, so the hooter is silent whenever the board is off or rebooting.</li>
+      <li>A <b>1 A fuse</b> on live, before anything else, on each node. <b>Node 1:</b> mains L → fuse → Hi-Link AC L; mains N → Hi-Link AC N. <b>Node 2:</b> mains L → fuse, then from the fused side to both the Hi-Link AC L and the relay COM; mains N → Hi-Link AC N and the hooter.</li>
+      <li>Everything that touches 220V (Hi-Link input pins, relay contacts, fuse, hooter terminals) goes <b>inside a closed plastic box</b>. Use strain relief on the mains lead. Keep mains tracks/wires ≥ 6 mm away from the low-voltage side. If the hooter has a metal body or an earth terminal, connect it to mains earth.</li>
+      <li><b>Never connect USB while the board is on mains.</b> Flash the firmware first with USB only, then unplug USB, then plug in mains.</li>
+      <li>Bench-test Node 2 with a <b>bulb</b> in place of the hooter first. Ask the venue whether a mains device on stage is allowed, and keep the plug within reach.</li>
+    </ul>
+  </div>
+
+
+  <h2 id="setup">Arduino IDE setup (once)</h2>
+  <ol>
+    <li><b>Boards Manager</b> → install <b>"esp32" by Espressif Systems</b> (3.x).</li>
+    <li><b>Library Manager</b> → install <b>"Adafruit ADS1X15"</b> (Node 1 only; accept Adafruit BusIO). Node 2 needs no extra libraries.</li>
+    <li><b>Tools</b> menu, for both boards:
+      <ul>
+        <li>Board: <b>ESP32C3 Dev Module</b></li>
+        <li><b>USB CDC On Boot: Enabled</b>. Without it, Serial Monitor stays empty.</li>
+        <li><b>Partition Scheme: Huge APP (3MB No OTA/1MB SPIFFS)</b>. BLE + Wi-Fi is ~1.27 MB, right at the edge of the default partition.</li>
+      </ul></li>
+    <li>Make one sketch folder per node. Each folder needs its <code>.ino</code> <b>and</b> a copy of <code>fc26_protocol.h</code> (download buttons at the bottom of this page).</li>
+    <li>If an upload won't start: <b>hold BOOT, tap RESET, release BOOT</b>, then upload again.</li>
+  </ol>
+  <p class="note">Built with esp32 core 3.3.12 (BLE on the NimBLE backend) and Adafruit ADS1X15 2.6.2, no warnings. <b>Tested on hardware:</b> Node 1 (PT100, ADS1115, BLE to the app, calibration from the app) and the app's backup siren. Node 2 is compile-tested; its hardware is in progress.</p>
+  <p><b>Before the first power-up</b></p>
+  <ul>
+    <li><b>Node 1:</b> measure the reference resistor with a multimeter and put the value in <code>RREF</code> at the top of the sketch (e.g. <code>987.0</code>).</li>
+    <li><b>Flash with USB only, mains unplugged.</b> Never have USB and the Hi-Link connected at the same time.</li>
+    <li>Two kits in one room? Give each kit its own <code>NETWORK_ID</code> in <code>fc26_protocol.h</code>, the same in both folders.</li>
+  </ul>
+
+  <h2 id="first">First test with Serial Monitor (115200 baud)</h2>
+  <ol>
+    <li>Flash Node 2 first. Serial shows <code>[wifi] access point FC26-NET up</code>; its LED blinks blue until Node 1 joins.</li>
+    <li>Flash Node 1. Serial shows <code>[wifi] joined FC26-NET</code>, then <code>[temp] 27.84 °C (110.85 Ω, offset +0.00)</code> every second. Hold the probe: it rises.</li>
+    <li>Node 2's LED turns green and its Serial shows <code>[sensor] Node 1 online</code>, then every 10 s <code>1 device(s) on FC26-NET, N packets from Node 1</code>.</li>
+    <li>Bench-test the relay with a <b>bulb</b>, not the hooter: hold the TTP223 for 2 s and the bulb comes on for 2 s.</li>
+    <li>Run the full flow with the default 35 °C setpoint: warm the probe (hand, warm water or a lighter held well away), wait 3 s → bulb on; touch the TTP223 → off; let it cool below 33 °C → back to green. If Node 2 kept an older saved setpoint, set 35 °C in the app's Settings.</li>
+  </ol>
+
+  <h2 id="browser">Test from a browser (no app)</h2>
+  <p><code>ble-test.html</code> is in the same folder as this page. Close the display app first (one connection per board). It needs <b>Chrome or Edge</b> (Mac, Windows, Android); Safari and Firefox have no Web Bluetooth. Serve it from localhost:</p>
+  <pre class="flow">cd esp32
+python3 -m http.server 8766
+# then open http://localhost:8766/ble-test.html</pre>
+  <ul>
+    <li><b>Connect</b> on the Node 2 card → pick <code>FC26-SIREN</code>: live temperature, alarm state, hooter, Node 1 link. Buttons for Acknowledge, Test siren and Save limits.</li>
+    <li><b>Connect</b> on the Node 1 card → pick <code>FC26-TEMP</code>: probe resistance, faults, and <b>Calibrate</b> (type a trusted thermometer's reading, press Calibrate).</li>
+    <li><b>Simulate</b> runs a fake node in the page, to try the flow before the hardware is ready.</li>
+    <li>On a phone, <b>nRF Connect</b> also shows the raw characteristics.</li>
+  </ul>
+
+  <h2 id="led">LED colours</h2>
+  <p class="muted">Only Node 2 has an LED. Node 1 reports over Serial (115200 baud).</p>
+  <div class="tablewrap"><table>
+    <tr><th>Colour</th><th>Node 2 (siren)</th></tr>
+    <tr><td>R → G → B at power-up</td><td>LED self-test. A missing colour = that leg isn't connected.</td></tr>
+    <tr><td>Green</td><td>solid: all normal</td></tr>
+    <tr><td>Blue</td><td>slow blink: no data from Node 1</td></tr>
+    <tr><td>Red</td><td>slow blink: above setpoint, waiting · fast blink: hooter ON · solid: acknowledged, still hot</td></tr>
+  </table></div>
+
+  <h2 id="ble">BLE contract</h2>
+  <p class="muted">Little-endian. Temperatures are °C × 100 as int16; <code>-32768</code> = no reading. All UUIDs end in <code>-6a1b-4d2e-9f3c-8b5e7a0c1d2f</code>.</p>
+  <h3>Node 2 <code>FC26-SIREN</code> · service <code>fc260200-…</code></h3>
+  <div class="tablewrap"><table>
+    <tr><th>Characteristic</th><th>Access</th><th>Content</th></tr>
+    <tr><td><code>fc260201-…</code> state</td><td>read, notify</td><td>10 bytes: int16 temp · uint8 state (0 normal, 1 pending, 2 alarm, 3 acknowledged) · uint8 flags (bit0 hooter, bit1 Node 1 online, bit2 test, bit3 probe fault) · int16 setpoint · uint16 hysteresis (×100) · uint8 delay s · uint8 seq</td></tr>
+    <tr><td><code>fc260202-…</code> command</td><td>write (text)</td><td><code>ACK</code> · <code>TEST</code> · <code>STOP</code> · <code>CFG=35,2,3</code> (setpoint, hysteresis, delay)</td></tr>
+  </table></div>
+  <h3>Node 1 <code>FC26-TEMP</code> · service <code>fc260100-…</code></h3>
+  <div class="tablewrap"><table>
+    <tr><th>Characteristic</th><th>Access</th><th>Content</th></tr>
+    <tr><td><code>fc260101-…</code> reading</td><td>read, notify</td><td>8 bytes: int16 temp · uint16 ohms×100 · uint8 fault (0 ok, 1 ADS1115 missing, 2 open, 3 short, 4 range) · uint8 seq · int16 offset×100</td></tr>
+    <tr><td><code>fc260102-…</code> command</td><td>write (text)</td><td><code>CAL=&lt;real °C&gt;</code> · <code>OFS=&lt;offset °C&gt;</code></td></tr>
+  </table></div>
+  <p class="muted">Wi-Fi packet (Node 1 → UDP 192.168.4.1:4626 on FC26-NET): 10 bytes, "FC26" · version · network id · seq · fault · int16 temp.</p>
+
+  <h2 id="code">Firmware</h2>
+  <p class="muted">The same files are in the <code>node1_temperature</code> and <code>node2_siren</code> folders next to this page. Use Download to save each one with the right name.</p>
+  <div class="codehead"><h3>node1_temperature.ino</h3><span class="muted">folder <code>node1_temperature/</code></span>
+    <button data-copy="node1_temperature.ino">Copy</button><button data-dl="node1_temperature.ino">Download</button></div>
+  <pre class="code" id="src-node1_temperature.ino">/*
+ * FlutterCon India 2026: Node 1, temperature
+ * ESP32-C3 Super Mini + ADS1115 + PT100
+ *
+ * Measures the PT100 with the ADS1115 (ratiometric) once a second and:
+ *   - joins Node 2&#x27;s Wi-Fi network &quot;FC26-NET&quot; and sends it °C as one UDP packet a second
+ *     (no router: Node 2 is the access point)
+ *   - serves it over BLE as &quot;FC26-TEMP&quot; (the app reads the temperature here and calibrates)
+ *
+ * Circuit (see ../WIRING.md):
+ *   3V3 ── A0 ── Rref ── A1 ── lead A ──┐
+ *                                       PT100 ── lead C ── GND
+ *                         A2 ── lead B ──┘   (lead B is the sense wire: no current flows)
+ *
+ * Board: &quot;ESP32C3 Dev Module&quot;, USB CDC On Boot: Enabled, Partition: Huge APP (3MB No OTA)
+ * Library: &quot;Adafruit ADS1X15&quot;
+ */
+
+#include &lt;Wire.h&gt;
+#include &lt;WiFi.h&gt;
+#include &lt;WiFiUdp.h&gt;
+#include &lt;Preferences.h&gt;
+#include &lt;Adafruit_ADS1X15.h&gt;
+#include &lt;BLEDevice.h&gt;
+#include &lt;BLEServer.h&gt;
+
+#include &quot;fc26_protocol.h&quot;
+
+struct Measurement { fc26::Fault fault; float ohms; float celsius; };
+
+// ---------- Pins (ESP32-C3 Super Mini) ----------
+constexpr int PIN_SDA   = 5;   // right header
+constexpr int PIN_SCL   = 6;
+
+// ---------- PT100 measurement ----------
+constexpr float RREF  = 980.0f;  // ohms. Measure YOUR resistor with a multimeter and put the value here.
+constexpr float R0    = 100.0f;   // PT100 = 100 Ω at 0 °C
+constexpr int   WIRES = 2;        // 3 = lead compensation via A2; 2 = 2-wire probe (A2 unused)
+constexpr int   SAMPLES = 4;      // conversions averaged per channel
+constexpr uint32_t READ_EVERY_MS = 1000;
+
+
+Adafruit_ADS1115 ads;
+Preferences prefs;
+bool adsOk = false;
+float offsetC = 0;           // calibration offset, stored in flash
+float lastRawC = NAN;        // before offset, used by &quot;CAL=&quot;
+uint8_t seq = 0;
+
+BLECharacteristic *readingChr = nullptr;
+volatile bool bleConnected = false;
+portMUX_TYPE cmdMux = portMUX_INITIALIZER_UNLOCKED;
+char pendingCmd[24] = {0};
+
+WiFiUDP udp;
+const IPAddress NODE2(fc26::NODE2_IP[0], fc26::NODE2_IP[1], fc26::NODE2_IP[2], fc26::NODE2_IP[3]);
+uint32_t sentOk = 0, sentFail = 0;
+
+// ---------- PT100 maths ----------
+// Callendar–Van Dusen (IEC 60751), solved for t ≥ 0 °C; within 0.1 °C down to −40 °C.
+float ohmsToCelsius(float r) {
+  constexpr float A = 3.9083e-3f, B = -5.775e-7f;
+  const float disc = A * A - 4 * B * (1 - r / R0);
+  return (-A + sqrtf(disc)) / (2 * B);
+}
+
+// Reads one input in volts, choosing the most sensitive ADS1115 range that fits.
+float readVolts(uint8_t ch) {
+  struct Range { adsGain_t gain; float fullScale; };
+  static const Range ranges[] = {
+    {GAIN_SIXTEEN, 0.256f}, {GAIN_EIGHT, 0.512f}, {GAIN_FOUR, 1.024f},
+    {GAIN_TWO, 2.048f}, {GAIN_ONE, 4.096f},
+  };
+  ads.setGain(GAIN_ONE);
+  const float coarse = ads.computeVolts(ads.readADC_SingleEnded(ch));
+  for (const Range &amp;r : ranges) {
+    if (fabsf(coarse) &lt; r.fullScale * 0.9f || r.gain == GAIN_ONE) {
+      ads.setGain(r.gain);
+      float sum = 0;
+      for (int i = 0; i &lt; SAMPLES; ++i) sum += ads.computeVolts(ads.readADC_SingleEnded(ch));
+      return sum / SAMPLES;
+    }
+  }
+  return coarse;
+}
+
+Measurement measure() {
+  if (!adsOk) return {fc26::FAULT_ADC_MISSING, NAN, NAN};
+  const float v0 = readVolts(0);              // top of Rref (3V3 rail)
+  const float v1 = readVolts(1);              // bottom of Rref = lead A
+  const float v2 = WIRES == 3 ? readVolts(2) : v1;  // sense lead B
+  const float vRef = v0 - v1;                 // volts across Rref → current
+  if (v0 &lt; 2.5f) return {fc26::FAULT_ADC_MISSING, NAN, NAN};   // A0 not wired to 3V3
+  if (vRef &lt; 0.02f) return {fc26::FAULT_OPEN, NAN, NAN};      // almost no current: probe open
+  if (v2 &gt; v1 + 0.005f || v2 &lt; -0.005f) return {fc26::FAULT_OPEN, NAN, NAN};  // sense wire loose
+  const float vElement = WIRES == 3 ? 2 * v2 - v1 : v1;       // lead resistances cancel
+  const float ohms = RREF * vElement / vRef;
+  if (ohms &lt; 10.0f) return {fc26::FAULT_SHORT, ohms, NAN};
+  if (ohms &lt; 18.0f || ohms &gt; 390.0f) return {fc26::FAULT_RANGE, ohms, NAN};
+  return {fc26::FAULT_NONE, ohms, ohmsToCelsius(ohms)};
+}
+
+// ---------- BLE ----------
+class ServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer *) override { bleConnected = true; }
+  void onDisconnect(BLEServer *) override {
+    bleConnected = false;
+    BLEDevice::startAdvertising();   // let the next client in
+  }
+};
+
+class CommandCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *c) override {
+    String v = c-&gt;getValue();
+    portENTER_CRITICAL(&amp;cmdMux);
+    strlcpy(pendingCmd, v.c_str(), sizeof(pendingCmd));
+    portEXIT_CRITICAL(&amp;cmdMux);
+  }
+};
+
+void setupBle() {
+  BLEDevice::init(&quot;FC26-TEMP&quot;);
+  BLEServer *server = BLEDevice::createServer();
+  server-&gt;setCallbacks(new ServerCallbacks());
+  BLEService *svc = server-&gt;createService(FC26_TEMP_SERVICE);
+  readingChr = svc-&gt;createCharacteristic(
+      FC26_TEMP_READING, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  BLECharacteristic *cmd = svc-&gt;createCharacteristic(
+      FC26_TEMP_COMMAND, BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
+  cmd-&gt;setCallbacks(new CommandCallbacks());
+  svc-&gt;start();
+  BLEAdvertising *adv = BLEDevice::getAdvertising();
+  adv-&gt;addServiceUUID(FC26_TEMP_SERVICE);
+  adv-&gt;setScanResponse(true);
+  BLEDevice::startAdvertising();
+}
+
+void handleCommand() {
+  char cmd[sizeof(pendingCmd)];
+  portENTER_CRITICAL(&amp;cmdMux);
+  strlcpy(cmd, pendingCmd, sizeof(cmd));
+  pendingCmd[0] = 0;
+  portEXIT_CRITICAL(&amp;cmdMux);
+  if (!cmd[0]) return;
+
+  if (!strncmp(cmd, &quot;OFS=&quot;, 4)) {          // set the offset directly
+    offsetC = constrain(atof(cmd + 4), -10.0f, 10.0f);
+  } else if (!strncmp(cmd, &quot;CAL=&quot;, 4)) {   // &quot;the real temperature is X&quot;: offset = X − raw
+    if (isnan(lastRawC)) { Serial.println(&quot;[cal] no valid reading yet&quot;); return; }
+    offsetC = constrain(atof(cmd + 4) - lastRawC, -10.0f, 10.0f);
+  } else {
+    Serial.printf(&quot;[ble] unknown command &#x27;%s&#x27;\n&quot;, cmd);
+    return;
+  }
+  prefs.putFloat(&quot;ofs&quot;, offsetC);
+  Serial.printf(&quot;[cal] offset now %+.2f °C\n&quot;, offsetC);
+}
+
+// ---------- Wi-Fi (join Node 2&#x27;s network) ----------
+void setupWifi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.setTxPower(FC26_WIFI_TX_POWER);
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(fc26::WIFI_SSID, fc26::WIFI_PASS, fc26::WIFI_CHANNEL);
+  WiFi.setTxPower(FC26_WIFI_TX_POWER);
+  Serial.printf(&quot;[wifi] joining %s\n&quot;, fc26::WIFI_SSID);
+}
+
+// Logs joins and drops, and retries if Node 2 wasn&#x27;t up yet (or rebooted).
+void handleWifi() {
+  static bool wasUp = false;
+  static uint32_t lastTry = 0, lastStats = 0;
+  const bool up = WiFi.status() == WL_CONNECTED;
+  if (up != wasUp) {
+    wasUp = up;
+    if (up) Serial.printf(&quot;[wifi] joined %s, IP %s, sending to %s:%u\n&quot;, fc26::WIFI_SSID,
+                          WiFi.localIP().toString().c_str(), NODE2.toString().c_str(), fc26::UDP_PORT);
+    else Serial.printf(&quot;[wifi] lost %s, looking again\n&quot;, fc26::WIFI_SSID);
+    lastTry = millis();
+  }
+  if (!up &amp;&amp; millis() - lastTry &gt;= 10000) {
+    lastTry = millis();
+    Serial.printf(&quot;[wifi] %s not found yet (is Node 2 on?), retrying\n&quot;, fc26::WIFI_SSID);
+    WiFi.disconnect();
+    delay(100);   // let the old attempt stop, or begin() is refused (&quot;sta is connecting&quot;)
+    WiFi.begin(fc26::WIFI_SSID, fc26::WIFI_PASS, fc26::WIFI_CHANNEL);
+    WiFi.setTxPower(FC26_WIFI_TX_POWER);
+  }
+  if (millis() - lastStats &gt;= 10000) {
+    lastStats = millis();
+    Serial.printf(&quot;[wifi] %s, sent %lu ok, %lu failed\n&quot;, up ? &quot;linked&quot; : &quot;not linked&quot;,
+                  (unsigned long)sentOk, (unsigned long)sentFail);
+  }
+}
+
+void sendToNode2(const fc26::TempPacket &amp;pkt) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  const bool ok = udp.beginPacket(NODE2, fc26::UDP_PORT) &amp;&amp;
+                  udp.write((const uint8_t *)&amp;pkt, sizeof(pkt)) == sizeof(pkt) &amp;&amp; udp.endPacket();
+  ok ? sentOk++ : sentFail++;
+}
+
+void publish(const Measurement &amp;m) {
+  int16_t centi = fc26::NO_READING;
+  if (m.fault == fc26::FAULT_NONE) centi = (int16_t)lroundf((m.celsius + offsetC) * 100);
+
+  fc26::TempPacket pkt = {{&#x27;F&#x27;, &#x27;C&#x27;, &#x27;2&#x27;, &#x27;6&#x27;}, fc26::VERSION, fc26::NETWORK_ID, seq, m.fault, centi};
+  sendToNode2(pkt);
+
+  // BLE reading: int16 centi-°C, uint16 centi-ohms, uint8 fault, uint8 seq, int16 centi-°C offset
+  uint8_t b[8];
+  const uint16_t centiOhms = isnan(m.ohms) ? 0 : (uint16_t)constrain(lroundf(m.ohms * 100), 0L, 65535L);
+  const int16_t centiOfs = (int16_t)lroundf(offsetC * 100);
+  memcpy(b, &amp;centi, 2);
+  memcpy(b + 2, &amp;centiOhms, 2);
+  b[4] = m.fault;
+  b[5] = seq;
+  memcpy(b + 6, &amp;centiOfs, 2);
+  readingChr-&gt;setValue(b, sizeof(b));
+  if (bleConnected) readingChr-&gt;notify();
+  seq++;
+}
+
+// ---------- Arduino ----------
+void setup() {
+  Serial.begin(115200);
+  prefs.begin(&quot;fc26n1&quot;);
+  offsetC = prefs.getFloat(&quot;ofs&quot;, 0);
+
+  Wire.begin(PIN_SDA, PIN_SCL);
+  adsOk = ads.begin(0x48, &amp;Wire);
+  ads.setDataRate(RATE_ADS1115_128SPS);
+  Serial.printf(&quot;\nNode 1 (temperature) starting. ADS1115 %s, offset %+.2f °C\n&quot;,
+                adsOk ? &quot;found&quot; : &quot;NOT FOUND (check SDA/SCL/ADDR)&quot;, offsetC);
+
+  setupWifi();
+  setupBle();
+}
+
+void loop() {
+  static uint32_t lastRead = 0;
+  handleCommand();
+  handleWifi();
+
+  if (millis() - lastRead &gt;= READ_EVERY_MS) {
+    lastRead = millis();
+    if (!adsOk) adsOk = ads.begin(0x48, &amp;Wire);   // recover if the ADS was plugged in late
+    const Measurement m = measure();
+    lastRawC = m.fault == fc26::FAULT_NONE ? m.celsius : NAN;
+    publish(m);
+    if (m.fault == fc26::FAULT_NONE) {
+      Serial.printf(&quot;[temp] %.2f °C  (%.2f Ω, offset %+.2f)\n&quot;, m.celsius + offsetC, m.ohms, offsetC);
+    } else {
+      Serial.printf(&quot;[temp] fault %u  (%.2f Ω)\n&quot;, m.fault, m.ohms);
+    }
+  }
+
+}
+</pre>
+  <div class="codehead"><h3>node2_siren.ino</h3><span class="muted">folder <code>node2_siren/</code></span>
+    <button data-copy="node2_siren.ino">Copy</button><button data-dl="node2_siren.ino">Download</button></div>
+  <pre class="code" id="src-node2_siren.ino">/*
+ * FlutterCon India 2026: Node 2, siren (the brain of the demo)
+ * ESP32-C3 Super Mini + 5V relay (2N2222 driver, 1N4007 flyback) + TTP223 touch + common-anode RGB LED
+ * + 220V hooter
+ *
+ * The alarm decision lives HERE, so the demo works with no app and no laptop:
+ *   - creates the Wi-Fi network &quot;FC26-NET&quot; (no router needed); Node 1 joins it and sends °C
+ *     as one UDP packet a second
+ *   - temp ≥ setpoint for `delay` seconds  → ALARM, hooter ON
+ *   - touch the TTP223                      → ACKNOWLEDGED, hooter OFF (stays off until it cools)
+ *   - temp ≤ setpoint − hysteresis          → back to NORMAL automatically, hooter OFF
+ *   - hold the TTP223 for 2 s when normal   → 2-second siren test
+ *   - serves state + accepts commands over BLE as &quot;FC26-SIREN&quot; (test page and Flutter app)
+ *
+ * Board: &quot;ESP32C3 Dev Module&quot;, USB CDC On Boot: Enabled, Partition: Huge APP (3MB No OTA)
+ * Libraries: none beyond the esp32 core.
+ * Wiring: see ../WIRING.md  —  ⚠️ 220V: read the mains section before wiring.
+ */
+
+#include &lt;WiFi.h&gt;
+#include &lt;WiFiUdp.h&gt;
+#include &lt;Preferences.h&gt;
+#include &lt;BLEDevice.h&gt;
+#include &lt;BLEServer.h&gt;
+
+#include &quot;fc26_protocol.h&quot;
+
+// ---------- Pins (ESP32-C3 Super Mini) ----------
+constexpr int PIN_TOUCH = 5;    // right header. TTP223 I/O (active HIGH, momentary: jumpers A and B open)
+constexpr int PIN_RELAY = 10;   // right header. → base resistor → 2N2222 base
+constexpr int PIN_LED_R = 4;    // left header (GPIO2 skipped: boot strapping pin)
+constexpr int PIN_LED_G = 3;
+constexpr int PIN_LED_B = 1;
+constexpr uint8_t LED_R_MAX = 60, LED_G_MAX = 255, LED_B_MAX = 255;
+
+// ---------- Behaviour ----------
+constexpr float    DEFAULT_SETPOINT   = 35.0f;   // °C: low enough for a warm hand to trigger on stage
+constexpr float    DEFAULT_HYSTERESIS = 2.0f;    // °C: clears at setpoint − hysteresis
+constexpr uint8_t  DEFAULT_DELAY_S    = 3;       // seconds above setpoint before the alarm
+constexpr uint32_t SENSOR_TIMEOUT_MS  = 6000;    // no packet from Node 1 for this long = sensor lost
+constexpr uint32_t MAX_ON_MS          = 120000;  // siren auto-silences after 2 min (counts as an ack)
+constexpr uint32_t TEST_MS            = 2000;    // siren test length
+constexpr uint32_t HOLD_FOR_TEST_MS   = 2000;
+constexpr uint32_t DEBOUNCE_MS        = 30;
+constexpr uint32_t NOTIFY_EVERY_MS    = 1000;
+
+enum AlarmState : uint8_t { ST_NORMAL = 0, ST_PENDING = 1, ST_ALARM = 2, ST_ACKED = 3 };
+const char *STATE_NAMES[] = {&quot;NORMAL&quot;, &quot;PENDING&quot;, &quot;ALARM&quot;, &quot;ACKNOWLEDGED&quot;};
+
+// Config (persisted in flash)
+Preferences prefs;
+float setpoint = DEFAULT_SETPOINT, hysteresis = DEFAULT_HYSTERESIS;
+uint8_t delayS = DEFAULT_DELAY_S;
+
+// Alarm engine
+AlarmState state = ST_NORMAL;
+uint32_t aboveSince = 0, alarmSince = 0, testUntil = 0;
+bool relayOn = false;
+
+// Latest from Node 1 (over UDP, read in loop)
+portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;   // guards pendingCmd (written by BLE)
+WiFiUDP udp;
+uint32_t lastPacketAt = 0, rxOk = 0, rxRejected = 0;
+int16_t centiC = fc26::NO_READING;
+uint8_t sensorFault = fc26::FAULT_NONE;
+bool sensorOnline = false;
+
+// BLE
+BLECharacteristic *stateChr = nullptr;
+volatile bool bleConnected = false;
+char pendingCmd[24] = {0};
+bool stateDirty = true;
+
+// ---------- Outputs ----------
+void led(uint8_t r, uint8_t g, uint8_t b) {
+  analogWrite(PIN_LED_R, 255 - r * LED_R_MAX / 255);
+  analogWrite(PIN_LED_G, 255 - g * LED_G_MAX / 255);
+  analogWrite(PIN_LED_B, 255 - b * LED_B_MAX / 255);
+}
+
+void applyRelay() {
+  const bool want = state == ST_ALARM || millis() &lt; testUntil;
+  if (want == relayOn) return;
+  relayOn = want;
+  digitalWrite(PIN_RELAY, want ? HIGH : LOW);
+  Serial.printf(&quot;[relay] %s\n&quot;, want ? &quot;ON&quot; : &quot;OFF&quot;);
+  stateDirty = true;
+}
+
+void setState(AlarmState next, const char *why) {
+  if (next == state) return;
+  Serial.printf(&quot;[alarm] %s → %s (%s)\n&quot;, STATE_NAMES[state], STATE_NAMES[next], why);
+  state = next;
+  if (next == ST_ALARM) alarmSince = millis();
+  stateDirty = true;
+}
+
+// ---------- Alarm engine (same rules as the Flutter app&#x27;s AlarmEngine) ----------
+void evaluate(float t, uint32_t now) {
+  switch (state) {
+    case ST_NORMAL:
+      if (t &gt;= setpoint) { aboveSince = now; setState(ST_PENDING, &quot;above setpoint&quot;); }
+      break;
+    case ST_PENDING:
+      if (t &lt; setpoint) setState(ST_NORMAL, &quot;dropped below setpoint&quot;);
+      break;
+    case ST_ALARM:
+    case ST_ACKED:
+      if (t &lt;= setpoint - hysteresis) setState(ST_NORMAL, &quot;cooled down&quot;);
+      break;
+  }
+  if (state == ST_PENDING &amp;&amp; now - aboveSince &gt;= delayS * 1000UL) setState(ST_ALARM, &quot;above setpoint for the delay&quot;);
+}
+
+void acknowledge(const char *who) {
+  if (state == ST_ALARM) setState(ST_ACKED, who);
+  if (testUntil) { testUntil = 0; stateDirty = true; }
+}
+
+void startTest(const char *who) {
+  if (state == ST_ALARM) return;   // already sounding
+  Serial.printf(&quot;[test] siren test (%s)\n&quot;, who);
+  testUntil = millis() + TEST_MS;
+  stateDirty = true;
+}
+
+// ---------- Wi-Fi access point + UDP ----------
+void onWifiEvent(arduino_event_id_t event, arduino_event_info_t) {
+  if (event == ARDUINO_EVENT_WIFI_AP_STACONNECTED) Serial.println(&quot;[wifi] a device joined FC26-NET&quot;);
+  if (event == ARDUINO_EVENT_WIFI_AP_STADISCONNECTED) Serial.println(&quot;[wifi] a device left FC26-NET&quot;);
+}
+
+void setupWifi() {
+  WiFi.onEvent(onWifiEvent);
+  WiFi.mode(WIFI_AP);
+  // Hidden = 0, max 2 devices (Node 1 + a laptop for debugging).
+  const bool ok = WiFi.softAP(fc26::WIFI_SSID, fc26::WIFI_PASS, fc26::WIFI_CHANNEL, 0, 2);
+  WiFi.setTxPower(FC26_WIFI_TX_POWER);
+  udp.begin(fc26::UDP_PORT);
+  Serial.printf(&quot;[wifi] access point %s %s on channel %u, IP %s, UDP port %u\n&quot;, fc26::WIFI_SSID,
+                ok ? &quot;up&quot; : &quot;FAILED&quot;, fc26::WIFI_CHANNEL, WiFi.softAPIP().toString().c_str(), fc26::UDP_PORT);
+}
+
+// Reads every waiting packet; returns true with the newest valid one in `out`.
+bool receivePacket(fc26::TempPacket &amp;out) {
+  bool got = false;
+  uint8_t buf[32];
+  for (int size = udp.parsePacket(); size &gt; 0; size = udp.parsePacket()) {
+    const int len = udp.read(buf, sizeof(buf));
+    const auto *p = (const fc26::TempPacket *)buf;
+    if (len != (int)sizeof(fc26::TempPacket) || memcmp(p-&gt;magic, &quot;FC26&quot;, 4) || p-&gt;version != fc26::VERSION ||
+        p-&gt;networkId != fc26::NETWORK_ID) {
+      if (rxRejected++ % 10 == 0) Serial.printf(&quot;[wifi] rejected a %d-byte packet (not FC26 v%u, network %u)\n&quot;,
+                                                len, fc26::VERSION, fc26::NETWORK_ID);
+      continue;
+    }
+    memcpy(&amp;out, buf, sizeof(out));
+    rxOk++;
+    got = true;
+  }
+  return got;
+}
+
+void handleSensor() {
+  fc26::TempPacket p = {};
+  const bool fresh = receivePacket(p);
+
+  const uint32_t now = millis();
+  if (fresh) {
+    lastPacketAt = now;
+    if (!sensorOnline) Serial.println(&quot;[sensor] Node 1 online&quot;);
+    sensorOnline = true;
+    sensorFault = p.fault;
+    centiC = p.centiC;
+    stateDirty = true;
+    if (p.centiC != fc26::NO_READING) evaluate(p.centiC / 100.0f, now);
+  }
+  const bool lost = sensorOnline &amp;&amp; now - lastPacketAt &gt; SENSOR_TIMEOUT_MS;
+  const bool noData = lost || (fresh &amp;&amp; p.centiC == fc26::NO_READING);
+  if (lost) {
+    sensorOnline = false;
+    centiC = fc26::NO_READING;
+    Serial.println(&quot;[sensor] Node 1 lost&quot;);
+  }
+  // No trustworthy temperature: stand down. (A real plant might sound the alarm instead.)
+  if (noData) setState(ST_NORMAL, lost ? &quot;sensor lost&quot; : &quot;sensor fault&quot;);
+}
+
+void logLinkStats() {
+  static uint32_t last = 0;
+  if (millis() - last &lt; 10000) return;
+  last = millis();
+  Serial.printf(&quot;[wifi] %u device(s) on FC26-NET, %lu packets from Node 1, %lu rejected, sensor %s\n&quot;,
+                WiFi.softAPgetStationNum(), (unsigned long)rxOk, (unsigned long)rxRejected,
+                sensorOnline ? &quot;online&quot; : &quot;waiting&quot;);
+}
+
+void handleMaxOn() {
+  if (state == ST_ALARM &amp;&amp; MAX_ON_MS &amp;&amp; millis() - alarmSince &gt;= MAX_ON_MS) setState(ST_ACKED, &quot;max on-time reached&quot;);
+}
+
+// ---------- TTP223 ----------
+void handleTouch() {
+  static bool stable = false, last = false, testFired = false;
+  static uint32_t changedAt = 0, pressedAt = 0;
+  const bool raw = digitalRead(PIN_TOUCH) == HIGH;
+  if (raw != last) { last = raw; changedAt = millis(); }
+  if (millis() - changedAt &lt; DEBOUNCE_MS || raw == stable) {
+    if (stable &amp;&amp; !testFired &amp;&amp; millis() - pressedAt &gt;= HOLD_FOR_TEST_MS &amp;&amp; (state == ST_NORMAL || state == ST_PENDING)) {
+      testFired = true;
+      startTest(&quot;touch hold&quot;);
+    }
+    return;
+  }
+  stable = raw;
+  if (stable) {                       // pressed
+    pressedAt = millis();
+    testFired = false;
+    if (state == ST_ALARM || testUntil) { acknowledge(&quot;touch&quot;); testFired = true; }
+  }
+}
+
+// ---------- BLE ----------
+class ServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer *) override { bleConnected = true; }
+  void onDisconnect(BLEServer *) override {
+    bleConnected = false;
+    BLEDevice::startAdvertising();
+  }
+};
+
+class CommandCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *c) override {
+    String v = c-&gt;getValue();
+    portENTER_CRITICAL(&amp;mux);
+    strlcpy(pendingCmd, v.c_str(), sizeof(pendingCmd));
+    portEXIT_CRITICAL(&amp;mux);
+  }
+};
+
+void setupBle() {
+  BLEDevice::init(&quot;FC26-SIREN&quot;);
+  BLEServer *server = BLEDevice::createServer();
+  server-&gt;setCallbacks(new ServerCallbacks());
+  BLEService *svc = server-&gt;createService(FC26_SIREN_SERVICE);
+  stateChr = svc-&gt;createCharacteristic(
+      FC26_SIREN_STATE, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  BLECharacteristic *cmd = svc-&gt;createCharacteristic(
+      FC26_SIREN_COMMAND, BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR);
+  cmd-&gt;setCallbacks(new CommandCallbacks());
+  svc-&gt;start();
+  BLEAdvertising *adv = BLEDevice::getAdvertising();
+  adv-&gt;addServiceUUID(FC26_SIREN_SERVICE);
+  adv-&gt;setScanResponse(true);
+  BLEDevice::startAdvertising();
+}
+
+void saveConfig() {
+  prefs.putFloat(&quot;sp&quot;, setpoint);
+  prefs.putFloat(&quot;hy&quot;, hysteresis);
+  prefs.putUChar(&quot;dl&quot;, delayS);
+}
+
+void handleCommand() {
+  char cmd[sizeof(pendingCmd)];
+  portENTER_CRITICAL(&amp;mux);
+  strlcpy(cmd, pendingCmd, sizeof(cmd));
+  pendingCmd[0] = 0;
+  portEXIT_CRITICAL(&amp;mux);
+  if (!cmd[0]) return;
+  Serial.printf(&quot;[ble] command &#x27;%s&#x27;\n&quot;, cmd);
+
+  if (!strcmp(cmd, &quot;ACK&quot;) || !strcmp(cmd, &quot;STOP&quot;)) {
+    acknowledge(&quot;ble&quot;);
+  } else if (!strcmp(cmd, &quot;TEST&quot;)) {
+    startTest(&quot;ble&quot;);
+  } else if (!strncmp(cmd, &quot;CFG=&quot;, 4)) {   // CFG=&lt;setpoint&gt;,&lt;hysteresis&gt;,&lt;delay s&gt;
+    float sp, hy;
+    int dl;
+    if (sscanf(cmd + 4, &quot;%f,%f,%d&quot;, &amp;sp, &amp;hy, &amp;dl) == 3 &amp;&amp; sp &gt;= 0 &amp;&amp; sp &lt;= 150 &amp;&amp; hy &gt;= 0.1f &amp;&amp; hy &lt;= 20 &amp;&amp;
+        dl &gt;= 0 &amp;&amp; dl &lt;= 60) {
+      setpoint = sp;
+      hysteresis = hy;
+      delayS = (uint8_t)dl;
+      saveConfig();
+      Serial.printf(&quot;[cfg] setpoint %.2f, hysteresis %.2f, delay %u s\n&quot;, setpoint, hysteresis, delayS);
+      // Re-check against the new limits on the next reading.
+      if (state == ST_PENDING) setState(ST_NORMAL, &quot;config changed&quot;);
+    } else {
+      Serial.println(&quot;[cfg] rejected: out of range&quot;);
+    }
+  } else {
+    Serial.println(&quot;[ble] unknown command&quot;);
+  }
+  stateDirty = true;
+}
+
+// State packet, 10 bytes little-endian (see README):
+// int16 centi-°C | uint8 state | uint8 flags | int16 centi setpoint | uint16 centi hysteresis | uint8 delay s | uint8 seq
+void notifyState() {
+  static uint32_t lastNotify = 0;
+  static uint8_t seq = 0;
+  if (!stateDirty &amp;&amp; millis() - lastNotify &lt; NOTIFY_EVERY_MS) return;
+  lastNotify = millis();
+  stateDirty = false;
+
+  const uint8_t flags = (relayOn ? 1 : 0) | (sensorOnline ? 2 : 0) | (testUntil ? 4 : 0) |
+                        (sensorFault != fc26::FAULT_NONE ? 8 : 0);
+  const int16_t sp = (int16_t)lroundf(setpoint * 100);
+  const uint16_t hy = (uint16_t)lroundf(hysteresis * 100);
+  uint8_t b[10];
+  memcpy(b, &amp;centiC, 2);
+  b[2] = state;
+  b[3] = flags;
+  memcpy(b + 4, &amp;sp, 2);
+  memcpy(b + 6, &amp;hy, 2);
+  b[8] = delayS;
+  b[9] = seq++;
+  stateChr-&gt;setValue(b, sizeof(b));
+  if (bleConnected) stateChr-&gt;notify();
+}
+
+void updateLed() {
+  const uint32_t t = millis();
+  if (relayOn)                led((t / 100) % 2 ? 255 : 0, 0, 0);    // siren: fast red
+  else if (state == ST_ACKED)    led(255, 0, 0);                          // silenced, still hot: solid red
+  else if (state == ST_PENDING)  led((t / 400) % 2 ? 255 : 0, 0, 0);     // rising: slow red
+  else if (!sensorOnline || centiC == fc26::NO_READING)
+                              led(0, 0, (t / 500) % 2 ? 255 : 0);     // waiting for Node 1: slow blue
+  else                        led(0, 255, 0);                          // all good: green
+}
+
+// ---------- Arduino ----------
+void setup() {
+  // Relay OFF before anything else.
+  digitalWrite(PIN_RELAY, LOW);
+  pinMode(PIN_RELAY, OUTPUT);
+  digitalWrite(PIN_RELAY, LOW);
+
+  Serial.begin(115200);
+  pinMode(PIN_TOUCH, INPUT);
+  pinMode(PIN_LED_R, OUTPUT);
+  pinMode(PIN_LED_G, OUTPUT);
+  pinMode(PIN_LED_B, OUTPUT);
+  led(255, 0, 0); delay(250);
+  led(0, 255, 0); delay(250);
+  led(0, 0, 255); delay(250);
+  led(0, 0, 0);
+
+  prefs.begin(&quot;fc26n2&quot;);
+  setpoint = prefs.getFloat(&quot;sp&quot;, DEFAULT_SETPOINT);
+  hysteresis = prefs.getFloat(&quot;hy&quot;, DEFAULT_HYSTERESIS);
+  delayS = prefs.getUChar(&quot;dl&quot;, DEFAULT_DELAY_S);
+  Serial.printf(&quot;\nNode 2 (siren) starting. Relay OFF. Setpoint %.2f °C, hysteresis %.2f, delay %u s\n&quot;,
+                setpoint, hysteresis, delayS);
+
+  setupWifi();
+  setupBle();
+}
+
+void loop() {
+  handleSensor();
+  logLinkStats();
+  handleCommand();
+  handleTouch();
+  handleMaxOn();
+  if (testUntil &amp;&amp; millis() &gt;= testUntil) { testUntil = 0; stateDirty = true; }
+  applyRelay();
+  notifyState();
+  updateLed();
+}
+</pre>
+  <div class="codehead"><h3>fc26_protocol.h</h3><span class="muted">put a copy in <b>both</b> folders</span>
+    <button data-copy="fc26_protocol.h">Copy</button><button data-dl="fc26_protocol.h">Download</button></div>
+  <pre class="code" id="src-fc26_protocol.h">// FlutterCon India 2026: the contract shared by both nodes, the test page and the app.
+// Keep this file IDENTICAL in node1_temperature/ and node2_siren/ (Arduino can&#x27;t share
+// a header between sketch folders). Check with: diff */fc26_protocol.h
+#pragma once
+#include &lt;stdint.h&gt;
+
+namespace fc26 {
+
+// ---------- Wi-Fi (node 1 → node 2, no router: Node 2 is the access point) ----------
+// Node 2 creates the FC26-NET network; Node 1 joins it and sends one UDP packet a second to
+// Node 2&#x27;s address. If two of these kits are in the same room, give each kit its own SSID
+// and NETWORK_ID. The password only keeps strangers&#x27; phones off the network.
+constexpr char     WIFI_SSID[]  = &quot;FC26-NET&quot;;
+constexpr char     WIFI_PASS[]  = &quot;fc26-panel&quot;;   // WPA2 needs at least 8 characters
+constexpr uint8_t  WIFI_CHANNEL = 1;
+constexpr uint8_t  NODE2_IP[4]  = {192, 168, 4, 1};   // ESP32 access point default address
+constexpr uint16_t UDP_PORT     = 4626;
+// ESP32-C3 Super Mini boards have a poorly matched antenna: at full power (19.5 dBm) their
+// Wi-Fi often doesn&#x27;t get out at all. 8.5 dBm is the usual fix and plenty for a table-top demo.
+#define FC26_WIFI_TX_POWER WIFI_POWER_8_5dBm
+constexpr uint8_t  NETWORK_ID   = 26;
+constexpr uint8_t  VERSION      = 1;
+constexpr int16_t  NO_READING   = INT16_MIN;   // centi-°C value meaning &quot;no valid reading&quot;
+
+enum Fault : uint8_t {
+  FAULT_NONE        = 0,
+  FAULT_ADC_MISSING = 1,   // ADS1115 not answering on I2C
+  FAULT_OPEN        = 2,   // probe or a wire disconnected
+  FAULT_SHORT       = 3,   // probe wires touching
+  FAULT_RANGE       = 4,   // resistance outside -200…850 °C
+};
+
+struct __attribute__((packed)) TempPacket {   // 10 bytes, one UDP packet a second
+  char     magic[4];    // &quot;FC26&quot;
+  uint8_t  version;     // VERSION
+  uint8_t  networkId;   // NETWORK_ID
+  uint8_t  seq;         // increments every packet
+  uint8_t  fault;       // Fault
+  int16_t  centiC;      // °C × 100, or NO_READING
+};
+
+// ---------- BLE (nodes ↔ test page / Flutter app). UUIDs must be lowercase. ----------
+// Node 1 &quot;FC26-TEMP&quot;
+#define FC26_TEMP_SERVICE   &quot;fc260100-6a1b-4d2e-9f3c-8b5e7a0c1d2f&quot;
+#define FC26_TEMP_READING   &quot;fc260101-6a1b-4d2e-9f3c-8b5e7a0c1d2f&quot;  // read+notify, 8 bytes, see README
+#define FC26_TEMP_COMMAND   &quot;fc260102-6a1b-4d2e-9f3c-8b5e7a0c1d2f&quot;  // write text: &quot;OFS=-0.5&quot;, &quot;CAL=25.0&quot;
+// Node 2 &quot;FC26-SIREN&quot;
+#define FC26_SIREN_SERVICE  &quot;fc260200-6a1b-4d2e-9f3c-8b5e7a0c1d2f&quot;
+#define FC26_SIREN_STATE    &quot;fc260201-6a1b-4d2e-9f3c-8b5e7a0c1d2f&quot;  // read+notify, 10 bytes, see README
+#define FC26_SIREN_COMMAND  &quot;fc260202-6a1b-4d2e-9f3c-8b5e7a0c1d2f&quot;  // write text: &quot;ACK&quot;, &quot;TEST&quot;, &quot;STOP&quot;, &quot;CFG=35,2,3&quot;
+
+}  // namespace fc26
+</pre>
+</main>
+
+<script>
+// Small SVG drawing helpers. Colours come from CSS variables so both themes work.
+const NS = 'http://www.w3.org/2000/svg';
+function el(svg, name, attrs, text) {
+  const e = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text != null) e.textContent = text;
+  svg.appendChild(e);
+  return e;
+}
+const C = (n) => `var(--${n})`;
+const text = (s, x, y, t, cls = '', anchor = 'start') => el(s, 'text', { x, y, class: cls, 'text-anchor': anchor, 'dominant-baseline': 'middle' }, t);
+const wire = (s, pts, color, width = 2.5) =>
+  el(s, 'polyline', { points: pts.map((p) => p.join(',')).join(' '), fill: 'none', stroke: C(color), 'stroke-width': width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+const dot = (s, x, y, color = 'pin') => el(s, 'circle', { cx: x, cy: y, r: 4, fill: C(color) });
+
+function box(s, x, y, w, h, title, sub, fill = 'mod', stroke = 'line') {
+  el(s, 'rect', { x, y, width: w, height: h, rx: 10, fill: C(fill), stroke: C(stroke), 'stroke-width': 1.5 });
+  text(s, x + w / 2, y + 18, title, 'title', 'middle');
+  if (sub) text(s, x + w / 2, y + 35, sub, 'small', 'middle');
+}
+
+// A pin on a box edge: side 'l' or 'r'. Draws the pad and its label inside the box.
+function pin(s, x, y, label, side, unused = false) {
+  el(s, 'rect', { x: x - 5, y: y - 5, width: 10, height: 10, rx: 2, fill: unused ? C('unused') : C('pin') });
+  text(s, side === 'l' ? x + 10 : x - 10, y, label, unused ? 'small' : '', side === 'l' ? 'start' : 'end');
+}
+
+// Net tag ("connect to this rail").
+function tag(s, x, y, label, color, dir = 'right') {
+  const w = label.length * 7.5 + 14;
+  const gx = dir === 'right' ? x : x - w;
+  el(s, 'rect', { x: gx, y: y - 10, width: w, height: 20, rx: 10, fill: 'none', stroke: C(color), 'stroke-width': 2 });
+  text(s, gx + w / 2, y + 1, label, '', 'middle').setAttribute('style', `fill:${C(color)};font-weight:650;font-size:12px`);
+}
+
+// Resistor zig-zag between two points (horizontal or vertical).
+function resistor(s, x1, y1, x2, y2, label, color = 'pin', labelSide = 1) {
+  const vertical = x1 === x2;
+  const len = vertical ? y2 - y1 : x2 - x1;
+  const body = Math.min(44, Math.abs(len) * 0.6);
+  const start = (Math.abs(len) - body) / 2;
+  const pts = [[x1, y1]];
+  const at = (t, off) => (vertical ? [x1 + off, y1 + Math.sign(len) * t] : [x1 + Math.sign(len) * t, y1 + off]);
+  pts.push(at(start, 0));
+  for (let i = 0; i < 6; i++) pts.push(at(start + (body / 6) * (i + 0.5), i % 2 ? -7 : 7));
+  pts.push(at(start + body, 0), [x2, y2]);
+  wire(s, pts, color, 2);
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  if (vertical) text(s, mx + 14 * labelSide, my, label, '', labelSide > 0 ? 'start' : 'end');
+  else text(s, mx, my - 18 * labelSide, label, '', 'middle');
+}
+
+// ESP32-C3 Super Mini, USB-C at the top. Returns pin coordinates.
+function esp32(s, x, y, used) {
+  const w = 150, h = 340, step = 36, top = y + 50;
+  box(s, x, y, w, h, 'ESP32-C3', 'Super Mini', 'board', 'boardline');
+  el(s, 'rect', { x: x + w / 2 - 22, y: y - 8, width: 44, height: 16, rx: 5, fill: C('unused') });
+  text(s, x + w / 2, y + h - 14, 'USB-C on top', 'small', 'middle');
+  const left = ['5V', 'GND', '3V3', 'GPIO4', 'GPIO3', 'GPIO2', 'GPIO1', 'GPIO0'];
+  const right = ['GPIO5', 'GPIO6', 'GPIO7', 'GPIO8', 'GPIO9', 'GPIO10', 'GPIO20', 'GPIO21'];
+  const p = {};
+  left.forEach((n, i) => { p[n] = [x, top + i * step]; pin(s, x, top + i * step, n, 'l', !used.includes(n)); });
+  right.forEach((n, i) => { p[n] = [x + w, top + i * step]; pin(s, x + w, top + i * step, n, 'r', !used.includes(n)); });
+  return p;
+}
+
+function hilink(s, x, y, mainsTag) {
+  box(s, x, y, 170, 92, 'Hi-Link 5V 0.6A', 'HLK-PM01 · 220V AC → 5V DC', 'mains', 'mainsline');
+  pin(s, x, y + 56, 'AC L', 'l'); pin(s, x, y + 78, 'AC N', 'l');
+  pin(s, x + 170, y + 56, '+Vo', 'r'); pin(s, x + 170, y + 78, '−Vo', 'r');
+  wire(s, [[x, y + 56], [x - 20, y + 56]], 'w-orange'); tag(s, x - 20, y + 56, mainsTag, 'w-orange', 'left');
+  wire(s, [[x, y + 78], [x - 20, y + 78]], 'w-orange'); tag(s, x - 20, y + 78, 'N', 'w-orange', 'left');
+  return { vplus: [x + 170, y + 56], vminus: [x + 170, y + 78] };
+}
+
+function rgbLed(s, x, y, esp) {
+  box(s, x, y, 150, 150, 'RGB LED', 'common anode');
+  const legs = [['R', 'GPIO4', 'w-red'], ['G', 'GPIO3', 'w-green'], ['B', 'GPIO1', 'w-blue']];
+  legs.forEach(([leg, gp, col]) => {
+    const [ex, ey] = esp[gp];
+    pin(s, x + 150, ey, leg, 'r');
+    wire(s, [[x + 150, ey], [ex, ey]], col);
+  });
+  // common anode → 100 Ω → 3V3 (the firmware pulls R/G/B LOW to light them)
+  const cx = x + 40, cy = y + 150;
+  pin(s, cx, cy, '', 'l');
+  text(s, cx + 10, cy - 14, 'A (longest leg)', 'small');
+  resistor(s, cx, cy, cx, cy + 70, '100 Ω', 'pin', 1);
+  tag(s, cx - 24, cy + 84, '3V3', 'w-red');
+}
+
+// ---------------- Node 1 ----------------
+(function node1() {
+  const s = document.getElementById('node1');
+  const esp = esp32(s, 330, 100, ['5V', 'GND', '3V3', 'GPIO5', 'GPIO6']);
+  const hl = hilink(s, 100, 10, 'L (fused)');
+  wire(s, [hl.vplus, [310, hl.vplus[1]], [310, esp['5V'][1]], esp['5V']], 'w-red');
+  wire(s, [hl.vminus, [290, hl.vminus[1]], [290, esp.GND[1]], esp.GND], 'w-black');
+  wire(s, [esp['3V3'], [300, esp['3V3'][1]]], 'w-red'); tag(s, 300, esp['3V3'][1], '3V3', 'w-red', 'left');
+
+  // ADS1115
+  const ax = 600, ay = 100;
+  box(s, ax, ay, 150, 300, 'ADS1115', '16-bit ADC · I2C 0x48');
+  const L = { SDA: esp.GPIO5[1], SCL: esp.GPIO6[1], VDD: 250, GND: 286, ADDR: 322, ALRT: 358 };
+  Object.entries(L).forEach(([n, y]) => pin(s, ax, y, n, 'l', n === 'ALRT'));
+  wire(s, [esp.GPIO5, [ax, L.SDA]], 'w-blue'); text(s, 535, L.SDA - 10, 'SDA', 'small', 'middle');
+  wire(s, [esp.GPIO6, [ax, L.SCL]], 'w-yellow'); text(s, 535, L.SCL - 10, 'SCL', 'small', 'middle');
+  wire(s, [[ax, L.VDD], [570, L.VDD]], 'w-red'); tag(s, 570, L.VDD, '3V3', 'w-red', 'left');
+  wire(s, [[ax, L.GND], [570, L.GND]], 'w-black'); tag(s, 570, L.GND, 'GND', 'w-black', 'left');
+  wire(s, [[ax, L.ADDR], [570, L.ADDR]], 'w-black'); tag(s, 570, L.ADDR, 'GND', 'w-black', 'left');
+  const R = { A0: 150, A1: 240, A2: 300, A3: 360 };
+  Object.entries(R).forEach(([n, y]) => pin(s, ax + 150, y, n, 'r', n === 'A3'));
+
+  // Rref between 3V3 (A0) and A1
+  const rx = 810;
+  wire(s, [[ax + 150, R.A0], [rx, R.A0]], 'w-red');
+  wire(s, [[rx, R.A0], [rx, 120]], 'w-red'); tag(s, rx - 20, 110, '3V3', 'w-red');
+  dot(s, rx, R.A0);
+  resistor(s, rx, R.A0, rx, R.A1, 'Rref 1 kΩ', 'pin', -1);
+  dot(s, rx, R.A1);
+  wire(s, [[ax + 150, R.A1], [rx, R.A1]], 'w-green');
+
+  // PT100 probe
+  const px = 890;
+  box(s, px, 200, 100, 220, 'PT100', '2- or 3-wire');
+  wire(s, [[rx, R.A1], [px, R.A1]], 'w-green'); text(s, 850, R.A1 - 12, 'lead A', 'small', 'middle');
+  wire(s, [[ax + 150, R.A2], [px, R.A2]], 'w-purple'); text(s, 850, R.A2 - 12, 'lead B', 'small', 'middle');
+  const lc = 390;
+  wire(s, [[px, lc], [830, lc], [830, 430]], 'w-black'); tag(s, 806, 444, 'GND', 'w-black');
+  text(s, 862, lc - 12, 'lead C', 'small', 'middle');
+  // inside the probe: A and B join, element to C
+  wire(s, [[px, R.A1], [925, R.A1], [925, R.A2], [px, R.A2]], 'w-red', 2);
+  wire(s, [[925, R.A2], [925, 312]], 'pin', 2);
+  resistor(s, 925, 312, 925, lc - 10, '', 'pin');
+  wire(s, [[925, lc - 10], [925, lc], [px, lc]], 'w-white', 2);
+  text(s, 940, R.A1 + 30, 'same', 'small'); text(s, 940, R.A1 + 44, 'colour', 'small');
+  text(s, 940, lc - 30, 'odd', 'small'); text(s, 940, lc - 16, 'colour', 'small');
+  text(s, 700, 520, 'Rref: measure it with a multimeter and set RREF in the sketch to that value.', 'small', 'middle');
+})();
+
+// ---------------- Node 2 ----------------
+(function node2() {
+  const s = document.getElementById('node2');
+  const esp = esp32(s, 330, 100, ['5V', 'GND', '3V3', 'GPIO4', 'GPIO3', 'GPIO1', 'GPIO5', 'GPIO10']);
+  const hl = hilink(s, 100, 10, 'L (fused)');
+  wire(s, [hl.vplus, [310, hl.vplus[1]], [310, esp['5V'][1]], esp['5V']], 'w-red');
+  wire(s, [hl.vminus, [290, hl.vminus[1]], [290, esp.GND[1]], esp.GND], 'w-black');
+  dot(s, 310, hl.vplus[1], 'w-red');
+  wire(s, [[310, hl.vplus[1]], [310, 30], [330, 30]], 'w-red'); tag(s, 330, 30, '5V → relay coil +', 'w-red');
+  wire(s, [esp['3V3'], [300, esp['3V3'][1]]], 'w-red'); tag(s, 300, esp['3V3'][1], '3V3', 'w-red', 'left');
+  rgbLed(s, 90, 210, esp);
+
+  // TTP223
+  const tx = 600, ty = 100;
+  box(s, tx, ty, 150, 110, 'TTP223', 'touch · pads A, B open');
+  const ioY = esp.GPIO5[1];
+  pin(s, tx, ioY, 'I/O', 'l'); pin(s, tx, 176, 'VCC', 'l'); pin(s, tx, 198, 'GND', 'l');
+  wire(s, [esp.GPIO5, [tx, ioY]], 'w-yellow');
+  wire(s, [[tx, 176], [575, 176]], 'w-red'); tag(s, 575, 176, '3V3', 'w-red', 'left');
+  wire(s, [[tx, 198], [575, 198]], 'w-black'); tag(s, 575, 198, 'GND', 'w-black', 'left');
+
+  // Relay driver: GPIO10 → Rb → base (drawn lower so it clears the TTP223)
+  const gy = 450;                      // transistor base height
+  const bx = 640;                      // base bar x
+  wire(s, [esp.GPIO10, [505, esp.GPIO10[1]], [505, gy]], 'w-blue');
+  resistor(s, 505, gy, bx, gy, '1 kΩ (or 100 Ω)', 'w-blue');
+  el(s, 'line', { x1: bx, y1: gy - 22, x2: bx, y2: gy + 22, stroke: C('pin'), 'stroke-width': 4 });
+  el(s, 'circle', { cx: bx + 14, cy: gy, r: 30, fill: 'none', stroke: C('pin'), 'stroke-width': 1.5 });
+  const cx = 668;                      // collector / emitter x
+  const coilTop = 262, coilBot = 384;
+  wire(s, [[bx, gy - 8], [cx, gy - 26], [cx, coilBot]], 'pin', 2);    // collector up to coil −
+  wire(s, [[bx, gy + 8], [cx, gy + 26], [cx, 516]], 'pin', 2);        // emitter down to GND
+  el(s, 'polygon', { points: `${cx - 2},${gy + 25} ${cx - 13},${gy + 23} ${cx - 6},${gy + 15}`, fill: C('pin') });
+  text(s, bx - 6, gy + 46, '2N2222', '', 'end');
+  text(s, cx + 8, gy - 34, 'C', 'small'); text(s, bx - 12, gy - 14, 'B', 'small', 'end'); text(s, cx + 8, gy + 34, 'E', 'small');
+  tag(s, cx - 24, 530, 'GND', 'w-black');
+
+  // Relay coil (vertical) between coil+ (top, 5V) and coil− (collector)
+  const rTop = coilTop + 30, rBot = coilTop + 86, mid = (rTop + rBot) / 2;
+  el(s, 'rect', { x: cx - 16, y: rTop, width: 32, height: rBot - rTop, rx: 4, fill: C('mod'), stroke: C('pin'), 'stroke-width': 2 });
+  text(s, cx, mid, 'coil', 'small', 'middle');
+  wire(s, [[cx, rBot], [cx, coilBot]], 'pin', 2);
+  wire(s, [[cx, rTop], [cx, coilTop]], 'w-red', 2);
+  tag(s, cx - 18, coilTop - 12, '5V', 'w-red');
+  dot(s, cx, coilTop + 12); dot(s, cx, coilBot);
+  // 1N4007 across the coil, stripe to +5V
+  const dx = 730;
+  wire(s, [[cx, coilTop + 12], [dx, coilTop + 12], [dx, mid - 12]], 'pin', 2);
+  wire(s, [[dx, mid + 14], [dx, coilBot], [cx, coilBot]], 'pin', 2);
+  el(s, 'polygon', { points: `${dx - 11},${mid + 14} ${dx + 11},${mid + 14} ${dx},${mid - 10}`, fill: C('pin') });   // points up to the stripe
+  el(s, 'line', { x1: dx - 12, y1: mid - 12, x2: dx + 12, y2: mid - 12, stroke: C('pin'), 'stroke-width': 4 });
+  text(s, dx + 18, mid - 6, '1N4007', ''); text(s, dx + 18, mid + 10, 'stripe up', 'small');
+  text(s, cx - 24, mid - 8, 'Relay', '', 'end'); text(s, cx - 24, mid + 8, '5V coil', 'small', 'end');
+
+  // Relay contacts + mains
+  const kx = 850;
+  el(s, 'rect', { x: kx - 45, y: 300, width: 190, height: 260, rx: 12, fill: C('mains'), stroke: C('mainsline'), 'stroke-width': 1.5, 'stroke-dasharray': '6 4' });
+  text(s, kx + 50, 318, '220V side · inside the box', 'small', 'middle');
+  text(s, kx + 50, 334, 'relay contacts', 'small', 'middle');
+  const com = [kx, 395], no = [kx + 60, 365], nc = [kx + 60, 420];
+  dot(s, ...com); dot(s, ...no); dot(s, ...nc, 'unused');
+  wire(s, [com, [no[0] - 4, no[1] + 4]], 'pin', 3);
+  text(s, com[0] + 6, com[1] + 14, 'COM', 'small'); text(s, no[0] - 6, no[1] - 12, 'NO', 'small', 'end'); text(s, nc[0] + 8, nc[1], 'NC', 'small');
+  // L in → fuse → COM, with the Hi-Link branch taken AFTER the fuse
+  const lx = kx - 30;
+  wire(s, [[lx, 520], [lx, com[1]], com], 'w-orange');
+  el(s, 'rect', { x: lx - 10, y: 470, width: 20, height: 34, rx: 4, fill: C('card'), stroke: C('w-orange'), 'stroke-width': 2 });
+  text(s, lx + 16, 487, '1 A fuse', 'small');
+  tag(s, lx, 535, 'L in', 'w-orange');
+  dot(s, lx, 440, 'w-orange'); wire(s, [[lx, 440], [lx + 12, 440]], 'w-orange'); tag(s, lx + 12, 440, 'Hi-Link L', 'w-orange');
+  // NO → hooter → N
+  const hx = 958;
+  wire(s, [no, [hx, no[1]], [hx, 440]], 'w-orange');
+  el(s, 'rect', { x: hx - 24, y: 440, width: 48, height: 40, rx: 8, fill: C('card'), stroke: C('w-orange'), 'stroke-width': 2 });
+  text(s, hx, 460, '📢', '', 'middle');
+  text(s, hx - 30, 470, 'hooter', 'small', 'end');
+  wire(s, [[hx, 480], [hx, 535], [hx - 40, 535]], 'w-orange'); tag(s, hx - 40, 535, 'N', 'w-orange', 'left');
+})();
+
+// Copy / download buttons for the firmware listings.
+document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+  const text = document.getElementById('src-' + b.dataset.copy).textContent;
+  try { await navigator.clipboard.writeText(text); b.textContent = 'Copied'; }
+  catch (e) { b.textContent = 'Select and copy manually'; console.error(e); }
+  setTimeout(() => (b.textContent = 'Copy'), 1500);
+}));
+document.querySelectorAll('[data-dl]').forEach((b) => b.addEventListener('click', () => {
+  const text = document.getElementById('src-' + b.dataset.dl).textContent;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = b.dataset.dl;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}));
+</script>
+</body>
+</html>
